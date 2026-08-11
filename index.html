@@ -83,7 +83,7 @@ main{padding:22px 28px;max-width:1520px;margin:0 auto;position:relative;z-index:
 </header>
 <main><div class="grid" id="grid"></div></main>
 <script>
-const API='https://farm-production.up.railway.app';
+const API='https://farm-production-8282.up.railway.app';
 const PHONES={1:{ip:'192.168.1.9',n:10},2:{ip:'192.168.1.12',n:30},3:{ip:'192.168.1.14',n:20},4:{ip:'192.168.1.10',n:20},5:{ip:'192.168.1.11',n:19},6:{ip:'192.168.1.15',n:20},7:{ip:'192.168.1.13',n:18}};
 
 function fmt(n){if(!n||n==='?'||n==='—')return'—';const v=parseFloat(String(n).replace(/,/g,''));if(isNaN(v))return n;return v>=1000?(v/1000).toFixed(1)+'K':Math.round(v).toString();}
