@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farm Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#05050f;--s1:#0a0a1a;--s2:#0f0f22;--b1:#1c1c35;--b2:#252545;--a1:#7c3aed;--a2:#a855f7;--a3:#c084fc;--t1:#e2e8f0;--t2:#94a3b8;--t3:#475569}
+body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:900px;height:500px;background:radial-gradient(ellipse,rgba(124,58,237,0.07) 0%,transparent 70%);pointer-events:none}
+header{position:sticky;top:0;z-index:100;background:rgba(5,5,15,0.92);backdrop-filter:blur(24px);border-bottom:1px solid var(--b1);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;letter-spacing:-.3px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--a1),var(--a2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 24px rgba(124,58,237,0.45)}
+.hbar{display:flex;align-items:center;gap:8px}
+.hstat{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:7px 16px}
+.hv{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hl{font-size:10px;color:var(--t3);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.sep{width:1px;height:30px;background:var(--b1);margin:0 2px}
+.btn{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border:none;padding:8px 20px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 0 20px rgba(124,58,237,.35);transition:opacity .2s}
+.btn:hover{opacity:.85}
+.timer{font-size:11px;color:var(--t3)}
+main{padding:22px 28px;max-width:1520px;margin:0 auto;position:relative;z-index:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(345px,1fr));gap:16px}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:16px;overflow:hidden;position:relative;transition:border-color .3s,transform .2s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(124,58,237,.4),transparent);opacity:0;transition:opacity .3s}
+.card:hover{transform:translateY(-2px);border-color:var(--b2)}
+.card:hover::before,.card.running::before{opacity:1}
+.card.running{border-color:rgba(59,130,246,.25)}
+.card.running::before{background:linear-gradient(90deg,transparent,rgba(59,130,246,.5),transparent)}
+.card.error{border-color:rgba(239,68,68,.25)}
+.ch{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1);background:linear-gradient(180deg,var(--s2),var(--s1))}
+.pl{display:flex;align-items:center;gap:12px}
+.pn{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(168,85,247,.1));border:1px solid rgba(124,58,237,.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:var(--a3)}
+.pt{font-size:14px;font-weight:700}
+.pip{font-size:11px;color:var(--t3);margin-top:3px;font-family:monospace}
+.pill{font-size:10px;font-weight:600;padding:4px 12px;border-radius:20px;display:flex;align-items:center;gap:5px}
+.pill-r{background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
+.pill-i{background:rgba(71,85,105,.15);color:var(--t3);border:1px solid var(--b1)}
+.pill-e{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.cb{padding:16px 18px}
+.pr{display:flex;justify-content:space-between;margin-bottom:7px}
+.pl2{font-size:11px;color:var(--t3);font-weight:500}
+.pv{font-size:11px;color:var(--a3);font-weight:700}
+.pb{height:4px;background:var(--b1);border-radius:4px;margin-bottom:16px;overflow:hidden}
+.pf{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a1),var(--a2),var(--a3));box-shadow:0 0 8px rgba(124,58,237,.4)}
+.sg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.sb{background:var(--bg);border:1px solid var(--b1);border-radius:10px;padding:10px 8px;text-align:center}
+.sn{font-size:21px;font-weight:800;background:linear-gradient(135deg,var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.sl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-top:4px;font-weight:500}
+.vr{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--b1);border-radius:8px;padding:6px 10px;margin-bottom:14px}
+.vn{font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace}
+.ah{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-top:14px;border-top:1px solid var(--b1)}
+.at{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.ac{font-size:10px;color:var(--a3);font-weight:700}
+.al{display:flex;flex-direction:column;gap:3px;max-height:170px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--b1) transparent}
+.ar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;border:1px solid transparent;background:var(--bg)}
+.ar:hover{border-color:var(--b1)}
+.ar.active{border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.07)}
+.an{font-size:11px;color:var(--t2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.ar.active .an{color:var(--a3);font-weight:600}
+.af{font-size:11px;font-weight:700;color:var(--a2)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-icon">⬡</div> Farm Dashboard</div>
+  <div class="hbar">
+    <div class="hstat"><div class="hv" id="h1">137</div><div class="hl">Accounts</div></div>
+    <div class="sep"></div>
+    <div class="hstat"><div class="hv" id="h2">—</div><div class="hl">Reels Today</div></div>
+    <div class="sep"></div>
+    <div class="hstat"><div class="hv" id="h3">—</div><div class="hl">Active</div></div>
+    <div class="sep"></div>
+    <div class="hstat"><div class="hv" id="h4">—</div><div class="hl">Total Followers</div></div>
+    <div class="sep"></div>
+    <span class="timer" id="timer">30s</span>
+    <button class="btn" onclick="load()">↻ Refresh</button>
+  </div>
+</header>
+<main><div class="grid" id="grid"></div></main>
+<script>
+const API='https://farm-production.up.railway.app';
+const PHONES={1:{ip:'192.168.1.9',n:10},2:{ip:'192.168.1.12',n:30},3:{ip:'192.168.1.14',n:20},4:{ip:'192.168.1.10',n:20},5:{ip:'192.168.1.11',n:19},6:{ip:'192.168.1.15',n:20},7:{ip:'192.168.1.13',n:18}};
+
+function fmt(n){if(!n||n==='?'||n==='—')return'—';const v=parseFloat(String(n).replace(/,/g,''));if(isNaN(v))return n;return v>=1000?(v/1000).toFixed(1)+'K':Math.round(v).toString();}
+
+function totalFollowers(allStatuses){
+  let total=0;
+  for(const s of allStatuses){
+    if(!s?.accounts)continue;
+    for(const a of Object.values(s.accounts)){
+      const v=parseFloat(String(a.followers||'0').replace(/[KkMm,]/g,''));
+      if(!isNaN(v)){
+        if(String(a.followers).includes('K')||String(a.followers).includes('k'))total+=v*1000;
+        else total+=v;
+      }
+    }
+  }
+  return total>=1000?(total/1000).toFixed(1)+'K':total||'—';
+}
+
+async function load(){
+  let reels=0,active=0;
+  const allStatuses=[];
+  document.getElementById('grid').innerHTML='';
+
+  for(const[num,cfg]of Object.entries(PHONES)){
+    let s=null;
+    try{const r=await fetch(API+'/status/'+num,{signal:AbortSignal.timeout(4000)});s=await r.json();}catch(e){}
+    allStatuses.push(s);
+    const run=s?.status==='running',err=s?.status==='error';
+    if(run)active++;
+    if(s)reels+=s.reels_posted||0;
+    const pct=s?Math.min(100,Math.round(s.container/s.total_containers*100)):0;
+    const accs=s?.accounts||{};
+
+    const card=document.createElement('div');
+    card.className='card'+(run?' running':err?' error':'');
+    const rows=Array.from({length:cfg.n},(_,i)=>{
+      const a=accs[i+1]||{};
+      const isAct=s?.current_container===i+1;
+      const name=a.name&&a.name!=='?'?a.name:`Account ${i+1}`;
+      return`<div class="ar${isAct?' active':''}">
+        <span class="an">${name}</span>
+        <span class="af">${a.followers?fmt(a.followers):'—'}</span>
+      </div>`;
+    }).join('');
+
+    card.innerHTML=`
+    <div class="ch">
+      <div class="pl">
+        <div class="pn">${num}</div>
+        <div><div class="pt">Phone ${num}</div><div class="pip">${cfg.ip}</div></div>
+      </div>
+      <div class="pill ${run?'pill-r':err?'pill-e':'pill-i'}">${run?'<span class="dot"></span>':''}${run?'Running':err?'Error':'Idle'}</div>
+    </div>
+    <div class="cb">
+      <div class="pr"><span class="pl2">Container ${s?s.container:0} / ${s?s.total_containers:cfg.n}</span><span class="pv">${pct}%</span></div>
+      <div class="pb"><div class="pf" style="width:${pct}%"></div></div>
+      <div class="sg">
+        <div class="sb"><div class="sn">${cfg.n}</div><div class="sl">Accounts</div></div>
+        <div class="sb"><div class="sn">${s?.reels_posted??'—'}</div><div class="sl">Reels</div></div>
+        <div class="sb"><div class="sn">${s?.reels_verified??'—'}</div><div class="sl">Verified</div></div>
+      </div>
+      ${s?.current_video?`<div class="vr"><span>▶</span><span class="vn">${s.current_video}</span></div>`:''}
+      <div class="ah"><span class="at">Accounts</span><span class="ac">${cfg.n} total</span></div>
+      <div class="al">${rows}</div>
+    </div>`;
+    document.getElementById('grid').appendChild(card);
+  }
+
+  document.getElementById('h2').textContent=reels||'—';
+  document.getElementById('h3').textContent=active||'—';
+  document.getElementById('h4').textContent=totalFollowers(allStatuses);
+  tick();
+}
+
+let t;
+function tick(){
+  clearInterval(t);let s=30;
+  document.getElementById('timer').textContent=s+'s';
+  t=setInterval(()=>{s--;document.getElementById('timer').textContent=s+'s';if(s<=0){clearInterval(t);load();}},1000);
+}
+load();
+</script>
+</body>
+</html>
