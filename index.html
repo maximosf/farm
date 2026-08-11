@@ -63,6 +63,9 @@ main{padding:22px 28px;max-width:1520px;margin:0 auto;position:relative;z-index:
 .an{font-size:11px;color:var(--t2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
 .ar.active .an{color:var(--a3);font-weight:600}
 .af{font-size:11px;font-weight:700;color:var(--a2)}
+.sb-v{font-size:8px;font-weight:700;background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3);padding:1px 5px;border-radius:4px;letter-spacing:.5px}
+.sb-l{font-size:8px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);padding:1px 5px;border-radius:4px;letter-spacing:.5px}
+.sb-b{font-size:8px;font-weight:700;background:rgba(107,114,128,.15);color:#6b7280;border:1px solid rgba(107,114,128,.3);padding:1px 5px;border-radius:4px;letter-spacing:.5px}
 </style>
 </head>
 <body>
@@ -124,9 +127,11 @@ async function load(){
       const a=accs[i+1]||{};
       const isAct=s?.current_container===i+1;
       const name=a.name&&a.name!=='?'?a.name:`Account ${i+1}`;
+      const st=a.status||'ok';
+      const badge=st==='verify'?'<span class="sb-v">VERIFY</span>':st==='logged_out'?'<span class="sb-l">LOGOUT</span>':st==='ban'?'<span class="sb-b">BAN</span>':'';
       return`<div class="ar${isAct?' active':''}">
         <span class="an">${name}</span>
-        <span class="af">${a.followers?fmt(a.followers):'—'}</span>
+        <span style="display:flex;align-items:center;gap:6px">${badge}<span class="af">${a.followers?fmt(a.followers):'—'}</span></span>
       </div>`;
     }).join('');
 
