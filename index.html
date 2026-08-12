@@ -20,7 +20,6 @@ header{position:sticky;top:0;z-index:100;background:rgba(5,5,15,0.92);backdrop-f
 .sep{width:1px;height:30px;background:var(--b1);margin:0 2px}
 .btn{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;border:none;padding:8px 20px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 0 20px rgba(124,58,237,.35);transition:opacity .2s}
 .btn:hover{opacity:.85}
-.timer{font-size:11px;color:var(--t3)}
 main{padding:22px 28px;max-width:1520px;margin:0 auto;position:relative;z-index:1}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(345px,1fr));gap:16px}
 .card{background:var(--s1);border:1px solid var(--b1);border-radius:16px;overflow:hidden;position:relative;transition:border-color .3s,transform .2s}
@@ -28,49 +27,48 @@ main{padding:22px 28px;max-width:1520px;margin:0 auto;position:relative;z-index:
 .card:hover{transform:translateY(-2px);border-color:var(--b2)}
 .card:hover::before,.card.running::before{opacity:1}
 .card.running{border-color:rgba(59,130,246,.25)}
-.card.running::before{background:linear-gradient(90deg,transparent,rgba(59,130,246,.5),transparent)}
+.card.running::before{background:linear-gradient(90deg,transparent,rgba(59,130,246,.4),transparent)}
 .card.error{border-color:rgba(239,68,68,.25)}
-.ch{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1);background:linear-gradient(180deg,var(--s2),var(--s1))}
+.ch{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1);background:linear-gradient(180deg,var(--s2) 0%,var(--s1) 100%)}
 .pl{display:flex;align-items:center;gap:12px}
-.pn{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(168,85,247,.1));border:1px solid rgba(124,58,237,.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:var(--a3)}
+.pn{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(168,85,247,.1));border:1px solid rgba(124,58,237,.3);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:var(--a3)}
 .pt{font-size:14px;font-weight:700}
 .pip{font-size:11px;color:var(--t3);margin-top:3px;font-family:monospace}
-.pill{font-size:10px;font-weight:600;padding:4px 12px;border-radius:20px;display:flex;align-items:center;gap:5px}
+.pill{font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;display:flex;align-items:center;gap:5px}
 .pill-r{background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
 .pill-i{background:rgba(71,85,105,.15);color:var(--t3);border:1px solid var(--b1)}
 .pill-e{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-.dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:blink 2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 .cb{padding:16px 18px}
-.pr{display:flex;justify-content:space-between;margin-bottom:7px}
+.pr{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
 .pl2{font-size:11px;color:var(--t3);font-weight:500}
 .pv{font-size:11px;color:var(--a3);font-weight:700}
 .pb{height:4px;background:var(--b1);border-radius:4px;margin-bottom:16px;overflow:hidden}
-.pf{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a1),var(--a2),var(--a3));box-shadow:0 0 8px rgba(124,58,237,.4)}
+.pf{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a1),var(--a2),var(--a3));box-shadow:0 0 8px rgba(124,58,237,.5);transition:width .6s ease}
 .sg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .sb{background:var(--bg);border:1px solid var(--b1);border-radius:10px;padding:10px 8px;text-align:center}
-.sn{font-size:21px;font-weight:800;background:linear-gradient(135deg,var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.sn{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
 .sl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-top:4px;font-weight:500}
-.vr{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--b1);border-radius:8px;padding:6px 10px;margin-bottom:14px}
-.vn{font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace}
+.vr{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--b1);border-radius:8px;padding:7px 10px;margin-bottom:14px;font-size:10px;color:var(--t3);font-family:monospace;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .ah{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-top:14px;border-top:1px solid var(--b1)}
 .at{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
 .ac{font-size:10px;color:var(--a3);font-weight:700}
-.al{display:flex;flex-direction:column;gap:3px;max-height:170px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--b1) transparent}
-.ar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;border:1px solid transparent;background:var(--bg)}
+.al{display:flex;flex-direction:column;gap:3px;max-height:175px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--b1) transparent}
+.ar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;border:1px solid transparent;background:var(--bg);transition:border-color .2s}
 .ar:hover{border-color:var(--b1)}
 .ar.active{border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.07)}
-.an{font-size:11px;color:var(--t2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.an{font-size:11px;color:var(--t2);font-weight:500}
 .ar.active .an{color:var(--a3);font-weight:600}
 .af{font-size:11px;font-weight:700;color:var(--a2)}
-.sb-v{font-size:8px;font-weight:700;background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3);padding:1px 5px;border-radius:4px;letter-spacing:.5px}
-.sb-l{font-size:8px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);padding:1px 5px;border-radius:4px;letter-spacing:.5px}
-.sb-b{font-size:8px;font-weight:700;background:rgba(107,114,128,.15);color:#6b7280;border:1px solid rgba(107,114,128,.3);padding:1px 5px;border-radius:4px;letter-spacing:.5px}
+.sb-v{font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);font-weight:700}
+.sb-l{font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);font-weight:700}
+.sb-b{font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid rgba(100,116,139,.3);font-weight:700}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo"><div class="logo-icon">⬡</div> Farm Dashboard</div>
+  <div class="logo"><div class="logo-icon">⬡</div>Farm Dashboard</div>
   <div class="hbar">
     <div class="hstat"><div class="hv" id="h1">137</div><div class="hl">Accounts</div></div>
     <div class="sep"></div>
@@ -80,8 +78,8 @@ main{padding:22px 28px;max-width:1520px;margin:0 auto;position:relative;z-index:
     <div class="sep"></div>
     <div class="hstat"><div class="hv" id="h4">—</div><div class="hl">Total Followers</div></div>
     <div class="sep"></div>
-    <span class="timer" id="timer">30s</span>
     <button class="btn" onclick="load()">↻ Refresh</button>
+    <button class="btn" id="btn-yesterday" onclick="toggleYesterday()" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);box-shadow:0 0 20px rgba(37,99,235,.3)">📅 Yesterday</button>
   </div>
 </header>
 <main><div class="grid" id="grid"></div></main>
@@ -91,49 +89,38 @@ const PHONES={1:{ip:'192.168.1.9',n:10},2:{ip:'192.168.1.12',n:30},3:{ip:'192.16
 
 function fmt(n){if(!n||n==='?'||n==='—')return'—';const v=parseFloat(String(n).replace(/,/g,''));if(isNaN(v))return n;return v>=1000?(v/1000).toFixed(1)+'K':Math.round(v).toString();}
 
-function totalFollowers(allStatuses){
+function calcFollowers(allStatuses){
   let total=0;
   for(const s of allStatuses){
     if(!s?.accounts)continue;
     for(const a of Object.values(s.accounts)){
-      const v=parseFloat(String(a.followers||'0').replace(/[KkMm,]/g,''));
-      if(!isNaN(v)){
-        if(String(a.followers).includes('K')||String(a.followers).includes('k'))total+=v*1000;
-        else total+=v;
-      }
+      const raw=String(a.followers||'0');
+      const v=parseFloat(raw.replace(/,/g,''));
+      if(isNaN(v))continue;
+      total+=raw.toLowerCase().includes('k')?v*1000:v;
     }
   }
   return total>=1000?(total/1000).toFixed(1)+'K':total||'—';
 }
 
-async function load(){
-  let reels=0,active=0;
-  const allStatuses=[];
-  document.getElementById('grid').innerHTML='';
-
+// ── Build cards ONCE on page load — never rebuild again ──────────────────────
+function buildCards(){
+  const grid=document.getElementById('grid');
   for(const[num,cfg]of Object.entries(PHONES)){
-    let s=null;
-    try{const r=await fetch(API+'/status/'+num,{signal:AbortSignal.timeout(4000)});s=await r.json();}catch(e){}
-    allStatuses.push(s);
-    const run=s?.status==='running',err=s?.status==='error';
-    if(run)active++;
-    if(s)reels+=s.reels_posted||0;
-    const pct=s?Math.min(100,Math.round(s.container/s.total_containers*100)):0;
-    const accs=s?.accounts||{};
-
     const card=document.createElement('div');
-    card.className='card'+(run?' running':err?' error':'');
-    const rows=Array.from({length:cfg.n},(_,i)=>{
-      const a=accs[i+1]||{};
-      const isAct=s?.current_container===i+1;
-      const name=a.name&&a.name!=='?'?a.name:`Account ${i+1}`;
-      const st=a.status||'ok';
-      const badge=st==='verify'?'<span class="sb-v">VERIFY</span>':st==='logged_out'?'<span class="sb-l">LOGOUT</span>':st==='ban'?'<span class="sb-b">BAN</span>':'';
-      return`<div class="ar${isAct?' active':''}">
-        <span class="an">${name}</span>
-        <span style="display:flex;align-items:center;gap:6px">${badge}<span class="af">${a.followers?fmt(a.followers):'—'}</span></span>
-      </div>`;
-    }).join('');
+    card.className='card';
+    card.id='card-'+num;
+
+    // Account rows (static structure, values updated in-place)
+    const rows=Array.from({length:cfg.n},(_,i)=>
+      `<div class="ar" id="ar-${num}-${i+1}">
+        <span class="an" id="an-${num}-${i+1}">Account ${i+1}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span id="badge-${num}-${i+1}"></span>
+          <span class="af" id="af-${num}-${i+1}">—</span>
+        </span>
+      </div>`
+    ).join('');
 
     card.innerHTML=`
     <div class="ch">
@@ -141,36 +128,131 @@ async function load(){
         <div class="pn">${num}</div>
         <div><div class="pt">Phone ${num}</div><div class="pip">${cfg.ip}</div></div>
       </div>
-      <div class="pill ${run?'pill-r':err?'pill-e':'pill-i'}">${run?'<span class="dot"></span>':''}${run?'Running':err?'Error':'Idle'}</div>
+      <div class="pill pill-i" id="pill-${num}">Idle</div>
     </div>
     <div class="cb">
-      <div class="pr"><span class="pl2">Container ${s?s.container:0} / ${s?s.total_containers:cfg.n}</span><span class="pv">${pct}%</span></div>
-      <div class="pb"><div class="pf" style="width:${pct}%"></div></div>
+      <div class="pr">
+        <span class="pl2" id="plabel-${num}">Container 0 / ${cfg.n}</span>
+        <span class="pv" id="ppct-${num}">0%</span>
+      </div>
+      <div class="pb"><div class="pf" id="pfill-${num}" style="width:0%"></div></div>
       <div class="sg">
         <div class="sb"><div class="sn">${cfg.n}</div><div class="sl">Accounts</div></div>
-        <div class="sb"><div class="sn">${s?.reels_posted??'—'}</div><div class="sl">Reels</div></div>
-        <div class="sb"><div class="sn">${s?.reels_verified??'—'}</div><div class="sl">Verified</div></div>
+        <div class="sb"><div class="sn" id="sreels-${num}">—</div><div class="sl">Reels</div></div>
+        <div class="sb"><div class="sn" id="sverif-${num}">—</div><div class="sl">Verified</div></div>
       </div>
-      ${s?.current_video?`<div class="vr"><span>▶</span><span class="vn">${s.current_video}</span></div>`:''}
       <div class="ah"><span class="at">Accounts</span><span class="ac">${cfg.n} total</span></div>
       <div class="al">${rows}</div>
     </div>`;
-    document.getElementById('grid').appendChild(card);
+    grid.appendChild(card);
+  }
+}
+
+// ── Update values in-place — no rebuild, no flash ────────────────────────────
+async function load(){
+  let reels=0,active=0;
+  const allStatuses=[];
+
+  for(const[num,cfg]of Object.entries(PHONES)){
+    let s=null;
+    try{const r=await fetch(API+'/status/'+num,{signal:AbortSignal.timeout(4000)});s=await r.json();}catch(e){}
+    allStatuses.push(s);
+
+    const run=s?.status==='running', err=s?.status==='error';
+    if(run)active++;
+    if(s)reels+=s.reels_posted||0;
+    const pct=s?Math.min(100,Math.round(s.container/(s.total_containers||cfg.n)*100)):0;
+    const accs=s?.accounts||{};
+
+    // Card state
+    const card=document.getElementById('card-'+num);
+    if(card) card.className='card'+(run?' running':err?' error':'');
+
+    // Pill
+    const pill=document.getElementById('pill-'+num);
+    if(pill){
+      pill.className='pill '+(run?'pill-r':err?'pill-e':'pill-i');
+      pill.innerHTML=(run?'<span class="dot"></span>Running':err?'Error':'Idle');
+    }
+
+    // Progress
+    const el=id=>document.getElementById(id);
+    if(el('plabel-'+num)) el('plabel-'+num).textContent=`Container ${s?s.container:0} / ${s?s.total_containers:cfg.n}`;
+    if(el('ppct-'+num))   el('ppct-'+num).textContent=pct+'%';
+    if(el('pfill-'+num))  el('pfill-'+num).style.width=pct+'%';
+    if(el('sreels-'+num)) el('sreels-'+num).textContent=s?.reels_posted??'—';
+    if(el('sverif-'+num)) el('sverif-'+num).textContent=s?.reels_verified??'—';
+
+    // Account rows
+    for(let i=1;i<=cfg.n;i++){
+      const a=accs[i]||{};
+      const isAct=s?.current_container===i;
+      const name=a.name&&a.name!=='?'?a.name:`Account ${i}`;
+      const st=a.status||'ok';
+      const badge=st==='verify'?'<span class="sb-v">VERIFY</span>':st==='logged_out'?'<span class="sb-l">LOGOUT</span>':st==='ban'?'<span class="sb-b">BAN</span>':'';
+      const row=el('ar-'+num+'-'+i);
+      if(row) row.className='ar'+(isAct?' active':'');
+      if(el('an-'+num+'-'+i)) el('an-'+num+'-'+i).textContent=name;
+      if(el('badge-'+num+'-'+i)) el('badge-'+num+'-'+i).innerHTML=badge;
+      if(el('af-'+num+'-'+i))   el('af-'+num+'-'+i).textContent=a.followers?fmt(a.followers):'—';
+    }
   }
 
   document.getElementById('h2').textContent=reels||'—';
   document.getElementById('h3').textContent=active||'—';
-  document.getElementById('h4').textContent=totalFollowers(allStatuses);
-  tick();
+  document.getElementById('h4').textContent=calcFollowers(allStatuses);
 }
 
-let t;
-function tick(){
-  clearInterval(t);let s=30;
-  document.getElementById('timer').textContent=s+'s';
-  t=setInterval(()=>{s--;document.getElementById('timer').textContent=s+'s';if(s<=0){clearInterval(t);load();}},1000);
+// Silent refresh every 15s — no countdown, no flash, no rebuild
+setInterval(load, 15000);
+
+// ── Yesterday snapshot ───────────────────────────────────────────────────────
+let showingYesterday = false;
+
+async function toggleYesterday(){
+  if(showingYesterday){ showingYesterday=false; document.getElementById('btn-yesterday').textContent='📅 Yesterday'; load(); return; }
+  // Get yesterday's date
+  const d = new Date(); d.setDate(d.getDate()-1);
+  const date = d.toISOString().slice(0,10);
+  let snap = null;
+  try{ const r = await fetch(API+'/snapshot/'+date); snap = await r.json(); }catch(e){}
+  if(!snap || Object.keys(snap).length===0){
+    // Try listing snapshots and use the most recent one
+    try{
+      const r2 = await fetch(API+'/snapshots'); const d2 = await r2.json();
+      const dates = d2.dates||[];
+      if(dates.length){ const r3=await fetch(API+'/snapshot/'+dates[0]); snap=await r3.json(); }
+    }catch(e){}
+  }
+  if(!snap || Object.keys(snap).length===0){ alert('No snapshot found for yesterday yet. Snapshots are saved automatically at midnight.'); return; }
+  showingYesterday = true;
+  document.getElementById('btn-yesterday').textContent='▶ Today';
+  applySnapshot(snap);
 }
-load();
+
+function applySnapshot(snap){
+  let reels=0, totalFlw=0;
+  for(const[num,cfg]of Object.entries(PHONES)){
+    const s = snap[num]||snap[String(num)];
+    if(!s) continue;
+    reels += s.reels_posted||0;
+    const accs = s.accounts||{};
+    if(document.getElementById('sreels-'+num)) document.getElementById('sreels-'+num).textContent=s.reels_posted??'—';
+    if(document.getElementById('sverif-'+num)) document.getElementById('sverif-'+num).textContent=s.reels_verified??'—';
+    for(let i=1;i<=cfg.n;i++){
+      const a=accs[i]||{};
+      if(document.getElementById('af-'+num+'-'+i)) document.getElementById('af-'+num+'-'+i).textContent=a.followers?fmt(a.followers):'—';
+      if(document.getElementById('an-'+num+'-'+i)&&a.name&&a.name!=='?') document.getElementById('an-'+num+'-'+i).textContent=a.name;
+      const v=parseFloat(String(a.followers||'0').replace(/,/g,''));
+      if(!isNaN(v)) totalFlw += String(a.followers).toLowerCase().includes('k')?v*1000:v;
+    }
+  }
+  document.getElementById('h2').textContent=reels||'—';
+  document.getElementById('h4').textContent=totalFlw>=1000?(totalFlw/1000).toFixed(1)+'K':totalFlw||'—';
+}
+
+buildCards();  // build structure once
+load();        // fill with data
 </script>
 </body>
 </html>
