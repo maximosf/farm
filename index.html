@@ -572,7 +572,7 @@ function toggleDetail(n,i){
 }
 
 // ── CRANE ─────────────────────────────────────────────────────────────────────
-function ctrNum(name){const m=name.match(/:(\d+)$/);return m?parseInt(m[1]):null;}
+function ctrNum(name){const n=parseInt(name);if(!isNaN(n))return n;const m=name.match(/:(\d+)$/);return m?parseInt(m[1]):null;}
 
 async function craneCmd(phone,action,name='',num=''){
   const body={phone:parseInt(phone),action,name,container_num:num};
@@ -720,8 +720,13 @@ async function deleteAndCreate(phone){
 function toggleCrane(phone){
   craneOpen[phone]=!craneOpen[phone];
   const panel=document.getElementById('crane-panel-'+phone);
-  if(craneOpen[phone]){panel?.classList.add('open');refreshContainers(phone);}
-  else panel?.classList.remove('open');
+  if(craneOpen[phone]){
+    panel?.classList.add('open');
+    refreshContainers(phone);  // show cached instantly
+    craneSendList(phone);       // also trigger fresh SSH list from phone
+  } else {
+    panel?.classList.remove('open');
+  }
 }
 
 function openCreateModal(phone){modalPhone=phone;document.getElementById('modal-name').value='';document.getElementById('modal-create').classList.add('open');setTimeout(()=>document.getElementById('modal-name').focus(),100);}
