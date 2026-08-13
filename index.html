@@ -219,15 +219,16 @@ main{padding:20px 24px;max-width:1560px;margin:0 auto}
 <script>
 const API = 'https://farm-production-8282.up.railway.app';
 const PHONES = {
-  1:{ip:'192.168.1.9', fb:10, ig:10},
-  2:{ip:'192.168.1.12',fb:30, ig:30},
-  3:{ip:'192.168.1.14',fb:20, ig:20},
-  4:{ip:'192.168.1.10',fb:20, ig:20},
-  5:{ip:'192.168.1.11',fb:19, ig:19},
-  6:{ip:'192.168.1.15',fb:20, ig:20},
-  7:{ip:'192.168.1.13',fb:18, ig:18},
-  8:{ip:'192.168.1.5', fb:20, ig:20},
+  1:{ip:'192.168.1.9'},
+  2:{ip:'192.168.1.12'},
+  3:{ip:'192.168.1.14'},
+  4:{ip:'192.168.1.10'},
+  5:{ip:'192.168.1.11'},
+  6:{ip:'192.168.1.15'},
+  7:{ip:'192.168.1.13'},
+  8:{ip:'192.168.1.5'},
 };
+// Real container counts come from phone reporter — no hardcoding
 
 let platform = 'fb';
 const expanded = {};  // "phone-acc" -> bool
@@ -302,60 +303,8 @@ function buildCards(){
 
   for(const[num,cfg]of Object.entries(PHONES)){
     const n=parseInt(num);
-    const accCount=cfg[p];
     const card=document.createElement('div');
     card.className='card'; card.id=`card-${p}-${n}`;
-
-    // Build account rows
-    const rows=Array.from({length:accCount},(_,i)=>{
-      const a=i+1;
-      return`
-      <div class="acc-row" id="ar-${p}-${n}-${a}" onclick="toggleDetail(${n},${a})">
-        <span class="acc-num">${a}</span>
-        <span class="acc-name" id="an-${p}-${n}-${a}">Account ${a}</span>
-        <span id="badge-${p}-${n}-${a}"></span>
-        <span class="${flwCls}" id="flw-${p}-${n}-${a}">—</span>
-        <span class="acc-delta zero" id="delta-${p}-${n}-${a}">—</span>
-        <span class="acc-arrow">▾</span>
-      </div>
-      <div class="acc-detail" id="det-${p}-${n}-${a}">
-        <div class="detail-grid">
-          <div class="dg-item">
-            <div class="dg-label">Followers</div>
-            <div class="dg-value big ${ac}" id="dflw-${p}-${n}-${a}">—</div>
-            <div class="dg-sub" id="dflw-sub-${p}-${n}-${a}">—</div>
-          </div>
-          <div class="dg-item">
-            <div class="dg-label">+24h Change</div>
-            <div class="dg-value" id="ddelta-${p}-${n}-${a}">—</div>
-            <div class="dg-sub" id="ddelta-sub-${p}-${n}-${a}"></div>
-          </div>
-          <div class="dg-item">
-            <div class="dg-label">Views</div>
-            <div class="dg-value muted" id="dviews-${p}-${n}-${a}">—</div>
-            <div class="dg-sub">Total reel views</div>
-          </div>
-          <div class="dg-item">
-            <div class="dg-label">Reels Posted</div>
-            <div class="dg-value" id="dreels-${p}-${n}-${a}">—</div>
-            <div class="dg-sub" id="dreels-sub-${p}-${n}-${a}"></div>
-          </div>
-          <div class="dg-item">
-            <div class="dg-label">Created</div>
-            <div class="dg-value" id="dcreated-${p}-${n}-${a}">—</div>
-            <div class="dg-sub" id="dcreated-sub-${p}-${n}-${a}"></div>
-          </div>
-          <div class="dg-item">
-            <div class="dg-label">Last Active</div>
-            <div class="dg-value" id="dlast-${p}-${n}-${a}">—</div>
-            <div class="dg-sub">Last data received</div>
-          </div>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--t3)">
-          Bio: <a class="${linkCls}" id="dlink-${p}-${n}-${a}" href="#" target="_blank">—</a>
-        </div>
-      </div>`;
-    }).join('');
 
     card.innerHTML=`
     <div class="card-top">
@@ -373,12 +322,12 @@ function buildCards(){
         </div>
       </div>
       <div class="prog-row">
-        <span class="prog-label" id="plabel-${p}-${n}">Container 0 / ${accCount}</span>
+        <span class="prog-label" id="plabel-${p}-${n}">Loading...</span>
         <span class="prog-pct" id="ppct-${p}-${n}">0%</span>
       </div>
       <div class="prog-bar"><div class="${pfill}" id="pfill-${p}-${n}" style="width:0%"></div></div>
       <div class="mini-stats">
-        <div class="ms"><div class="ms-v ${ac}">${accCount}</div><div class="ms-l">Accs</div></div>
+        <div class="ms"><div class="ms-v ${ac}" id="ms-accs-${p}-${n}">—</div><div class="ms-l">Accs</div></div>
         <div class="ms"><div class="ms-v ${ac}" id="ms-reels-${p}-${n}">—</div><div class="ms-l">Reels</div></div>
         <div class="ms"><div class="ms-v ${ac}" id="ms-flw-${p}-${n}">—</div><div class="ms-l">Followers</div></div>
         <div class="ms"><div class="ms-v" id="ms-delta-${p}-${n}" style="color:var(--green)">—</div><div class="ms-l">+24h</div></div>
@@ -386,10 +335,12 @@ function buildCards(){
     </div>
 
     <div class="acc-section-head">
-      <span class="acc-section-title">Accounts</span>
-      <span class="acc-section-count">${accCount} total</span>
+      <span class="acc-section-title">Containers</span>
+      <span class="acc-section-count" id="acc-count-${p}-${n}">loading...</span>
     </div>
-    <div class="acc-list">${rows}</div>
+    <div class="acc-list" id="acc-list-${p}-${n}">
+      <div style="padding:12px;font-size:11px;color:var(--t3);text-align:center">Loading containers...</div>
+    </div>
 
     <!-- CRANE PANEL -->
     <div class="crane-panel" id="crane-panel-${n}">
@@ -450,21 +401,76 @@ function buildCards(){
 }
 
 // ── UPDATE IN-PLACE ───────────────────────────────────────────────────────────
+const _ctrCache = {}; // phone -> container list string (to detect changes)
+
+function buildAccRows(p, n, ctrs, ac, linkCls, flwCls){
+  return ctrs.map(c=>{
+    const a=c.name;
+    return`
+    <div class="acc-row" id="ar-${p}-${n}-${a}" onclick="toggleDetail(${n},'${a}')">
+      <span class="acc-num">${a}</span>
+      <span class="acc-name" id="an-${p}-${n}-${a}">Container ${a}</span>
+      <span id="badge-${p}-${n}-${a}"></span>
+      <span class="${flwCls}" id="flw-${p}-${n}-${a}">—</span>
+      <span class="acc-delta zero" id="delta-${p}-${n}-${a}">—</span>
+      <span class="acc-arrow">▾</span>
+    </div>
+    <div class="acc-detail" id="det-${p}-${n}-${a}">
+      <div class="detail-grid">
+        <div class="dg-item"><div class="dg-label">Followers</div><div class="dg-value big ${ac}" id="dflw-${p}-${n}-${a}">—</div><div class="dg-sub" id="dflw-sub-${p}-${n}-${a}">—</div></div>
+        <div class="dg-item"><div class="dg-label">+24h Change</div><div class="dg-value" id="ddelta-${p}-${n}-${a}">—</div><div class="dg-sub" id="ddelta-sub-${p}-${n}-${a}"></div></div>
+        <div class="dg-item"><div class="dg-label">Views</div><div class="dg-value muted" id="dviews-${p}-${n}-${a}">—</div><div class="dg-sub">Total reel views</div></div>
+        <div class="dg-item"><div class="dg-label">Reels Posted</div><div class="dg-value" id="dreels-${p}-${n}-${a}">—</div><div class="dg-sub" id="dreels-sub-${p}-${n}-${a}"></div></div>
+        <div class="dg-item"><div class="dg-label">Created</div><div class="dg-value" id="dcreated-${p}-${n}-${a}">—</div><div class="dg-sub" id="dcreated-sub-${p}-${n}-${a}"></div></div>
+        <div class="dg-item"><div class="dg-label">Last Active</div><div class="dg-value" id="dlast-${p}-${n}-${a}">—</div><div class="dg-sub">Last data received</div></div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--t3)">
+        Bio: <a class="${linkCls}" id="dlink-${p}-${n}-${a}" href="#" target="_blank">—</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function load(){
   const p=platform;
+  const ac=p==='fb'?'fb-c':'ig-c';
+  const flwCls=p==='fb'?'acc-followers':'acc-followers ig-flw';
+  const linkCls=p==='fb'?'detail-link':'detail-link ig-link';
   let totalReels=0, active=0, totalFlw=0, totalDelta=0, deltaCnt=0;
 
   for(const[num,cfg]of Object.entries(PHONES)){
     const n=parseInt(num);
-    let s=null;
-    try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(4000)});s=await r.json();}catch(e){}
+
+    // Fetch status AND container list in parallel
+    let s=null, ctrs=[];
+    try{
+      const [r1,r2] = await Promise.all([
+        fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(4000)}),
+        fetch(`${API}/crane/containers/${n}`,{signal:AbortSignal.timeout(4000)})
+      ]);
+      s = await r1.json();
+      const d2 = await r2.json();
+      ctrs = (d2.containers||[]).sort((a,b)=>a.num-b.num);
+    }catch(e){}
 
     const run=s?.status==='running', err=s?.status==='error';
     if(run)active++;
     if(s)totalReels+=s.reels_posted||0;
-    const accCount=cfg[p];
-    const pct=s?Math.min(100,Math.round(s.container/(s.total_containers||accCount)*100)):0;
+    const ctrCount=ctrs.length;
+    const pct=s?Math.min(100,Math.round(s.container/(s.total_containers||ctrCount||1)*100)):0;
     const accs=s?.accounts||{};
+
+    // Rebuild account rows if container list changed
+    const ctrKey=ctrs.map(c=>c.name).join(',');
+    const listEl=document.getElementById(`acc-list-${p}-${n}`);
+    const countEl=document.getElementById(`acc-count-${p}-${n}`);
+    const accsEl=document.getElementById(`ms-accs-${p}-${n}`);
+    if(listEl && ctrKey && _ctrCache[`${p}-${n}`]!==ctrKey){
+      listEl.innerHTML=buildAccRows(p,n,ctrs,ac,linkCls,flwCls);
+      _ctrCache[`${p}-${n}`]=ctrKey;
+    }
+    if(countEl) countEl.textContent=ctrCount?`${ctrCount} containers`:'loading...';
+    if(accsEl)  accsEl.textContent=ctrCount||'—';
 
     // Card class
     const card=document.getElementById(`card-${p}-${n}`);
@@ -479,56 +485,54 @@ async function load(){
 
     // Progress
     const e=id=>document.getElementById(id);
-    if(e(`plabel-${p}-${n}`)) e(`plabel-${p}-${n}`).textContent=`Container ${s?.container||0} / ${s?.total_containers||accCount}`;
+    if(e(`plabel-${p}-${n}`)) e(`plabel-${p}-${n}`).textContent=`Container ${s?.container||0} / ${s?.total_containers||ctrCount||'—'}`;
     if(e(`ppct-${p}-${n}`))   e(`ppct-${p}-${n}`).textContent=pct+'%';
     if(e(`pfill-${p}-${n}`))  e(`pfill-${p}-${n}`).style.width=pct+'%';
+    if(e(`ms-reels-${p}-${n}`)) e(`ms-reels-${p}-${n}`).textContent=s?.reels_posted??'—';
 
-    // Per-phone stats
+    // Per-phone follower stats
     let phoneFlw=0, phoneDelta=0, phoneDeltaCnt=0;
-    for(let i=1;i<=accCount;i++){
-      const acc=accs[String(i)]||accs[i]||{};
+    for(const c of ctrs){
+      const a=c.name;
+      const acc=accs[a]||accs[parseInt(a)]||{};
       const flwNum=parseFollowers(acc.followers);
-      phoneFlw+=flwNum;
-      totalFlw+=flwNum;
+      phoneFlw+=flwNum; totalFlw+=flwNum;
       const d=acc.delta_24h;
       if(d!==null&&d!==undefined){phoneDelta+=d;phoneDeltaCnt++;totalDelta+=d;deltaCnt++;}
 
       // Row update
-      const row=e(`ar-${p}-${n}-${i}`);
+      const row=e(`ar-${p}-${n}-${a}`);
       if(row){
-        const isCur=s?.current_container===i;
-        row.className=`acc-row${isCur?p==='fb'?' active-acc':' active-acc-ig':''}${expanded[`${p}-${n}-${i}`]?' expanded':''}`;
+        const isCur=String(s?.current_container)===String(a);
+        row.className=`acc-row${isCur?p==='fb'?' active-acc':' active-acc-ig':''}${expanded[`${p}-${n}-${a}`]?' expanded':''}`;
       }
-      if(e(`an-${p}-${n}-${i}`)&&acc.name&&acc.name!=='?') e(`an-${p}-${n}-${i}`).textContent=acc.name;
-      if(e(`flw-${p}-${n}-${i}`)) e(`flw-${p}-${n}-${i}`).textContent=fmt(acc.followers);
+      if(e(`an-${p}-${n}-${a}`)&&acc.name&&acc.name!=='?') e(`an-${p}-${n}-${a}`).textContent=acc.name;
+      if(e(`flw-${p}-${n}-${a}`)) e(`flw-${p}-${n}-${a}`).textContent=fmt(acc.followers);
 
-      // Delta badge in row
       const delta=fmtDelta(acc.delta_24h);
-      if(e(`delta-${p}-${n}-${i}`)){
-        const el=e(`delta-${p}-${n}-${i}`);
+      if(e(`delta-${p}-${n}-${a}`)){
+        const el=e(`delta-${p}-${n}-${a}`);
         el.textContent=delta.text; el.className=`acc-delta ${delta.cls}`;
       }
 
-      // Status badge
       const st=acc.status||'ok';
-      if(e(`badge-${p}-${n}-${i}`)){
+      if(e(`badge-${p}-${n}-${a}`)){
         const cls=st==='verify'?'acc-badge badge-verify':st==='logged_out'?'acc-badge badge-logout':st==='ban'?'acc-badge badge-ban':'';
         const txt=st==='verify'?'VERIFY':st==='logged_out'?'OUT':st==='ban'?'BAN':'';
-        e(`badge-${p}-${n}-${i}`).innerHTML=cls?`<span class="${cls}">${txt}</span>`:'';
+        e(`badge-${p}-${n}-${a}`).innerHTML=cls?`<span class="${cls}">${txt}</span>`:'';
       }
 
-      // Expanded detail panel
-      if(expanded[`${p}-${n}-${i}`]){
-        updateDetail(p,n,i,acc,s);
-      }
+      if(expanded[`${p}-${n}-${a}`]) updateDetail(p,n,a,acc,s);
     }
 
-    if(e(`ms-reels-${p}-${n}`)) e(`ms-reels-${p}-${n}`).textContent=s?.reels_posted??'—';
-    if(e(`ms-flw-${p}-${n}`))   e(`ms-flw-${p}-${n}`).textContent=fmt(phoneFlw)||'—';
-    if(e(`ms-delta-${p}-${n}`)){ const d=fmtDelta(phoneDeltaCnt?phoneDelta:null); e(`ms-delta-${p}-${n}`).textContent=d.text; e(`ms-delta-${p}-${n}`).style.color=d.cls==='pos'?'var(--green)':d.cls==='neg'?'var(--red)':'var(--t3)'; }
+    if(e(`ms-flw-${p}-${n}`)) e(`ms-flw-${p}-${n}`).textContent=fmt(phoneFlw)||'—';
+    if(e(`ms-delta-${p}-${n}`)){
+      const d=fmtDelta(phoneDeltaCnt?phoneDelta:null);
+      e(`ms-delta-${p}-${n}`).textContent=d.text;
+      e(`ms-delta-${p}-${n}`).style.color=d.cls==='pos'?'var(--green)':d.cls==='neg'?'var(--red)':'var(--t3)';
+    }
   }
 
-  // Header stats
   document.getElementById('h-active').textContent=active||'—';
   document.getElementById('h-reels').textContent=fmt(totalReels)||'—';
   document.getElementById('h-followers').textContent=fmt(totalFlw)||'—';
@@ -537,6 +541,7 @@ async function load(){
   hde.textContent=hd.text;
   hde.style.color=hd.cls==='pos'?'var(--green)':hd.cls==='neg'?'var(--red)':'var(--t3)';
 }
+
 
 function parseFollowers(raw){
   if(!raw||raw==='?'||raw==='—')return 0;
