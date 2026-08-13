@@ -1,13 +1,24 @@
 """
-Farm Dashboard Server — persistent storage via Upstash Redis REST API.
+Farm Dashboard Server v2 — FB + IG platform separation
+Persistent via Upstash Redis. 24h follower delta. First-seen date tracking.
 
-Setup:
-  1. upstash.com → create free Redis DB → copy REST URL + REST TOKEN
-  2. Railway Variables → UPSTASH_URL=... UPSTASH_TOKEN=...
-  3. Redeploy
-
-Data persists forever across all redeploys.
-Daily snapshots saved automatically at midnight.
+Endpoints:
+  POST /update/fb/{phone}    FB script sends status
+  POST /update/ig/{phone}    IG script sends status
+  GET  /status/fb/{phone}    FB status (includes 24h delta)
+  GET  /status/ig/{phone}    IG status
+  GET  /all/fb               all FB statuses
+  GET  /all/ig               all IG statuses
+  GET  /snapshots            list daily snapshots
+  GET  /snapshot/{date}      specific day snapshot
+  POST /crane/command        queue crane command
+  GET  /crane/pending        agent polls
+  POST /crane/result/{id}    agent reports done
+  GET  /crane/containers/{p} container list
+  POST /crane/containers/{p} update container list
+  GET  /crane/queue          recent commands
+  GET  /crane/state/{p}      container fresh/used state
+  POST /crane/state/{p}      update state
 """
 
 import json, os, uuid, time, datetime, threading
@@ -20,89 +31,132 @@ except ImportError:
     import urllib.request as _urllib
     _HAS_REQUESTS = False
 
-# ─── UPSTASH CONFIG ──────────────────────────────────────────────────────────
-UPSTASH_URL   = os.environ.get('UPSTASH_URL', '')    # e.g. https://xxx.upstash.io
-UPSTASH_TOKEN = os.environ.get('UPSTASH_TOKEN', '')  # Bearer token
+UPSTASH_URL   = os.environ.get('UPSTASH_URL', '')
+UPSTASH_TOKEN = os.environ.get('UPSTASH_TOKEN', '')
 
+# ─── UPSTASH ─────────────────────────────────────────────────────────────────
 def _redis(method, path, body=None):
-    """Call Upstash REST API. Returns parsed result or None."""
-    if not UPSTASH_URL or not UPSTASH_TOKEN:
-        return None
-    url     = UPSTASH_URL.rstrip('/') + path
-    headers = {'Authorization': f'Bearer {UPSTASH_TOKEN}',
-               'Content-Type': 'application/json'}
+    if not UPSTASH_URL: return None
+    url = UPSTASH_URL.rstrip('/') + path
+    hdrs = {'Authorization': f'Bearer {UPSTASH_TOKEN}', 'Content-Type': 'application/json'}
     try:
         if _HAS_REQUESTS:
-            if method == 'GET':
-                r = _req.get(url, headers=headers, timeout=5)
-            else:
-                r = _req.post(url, headers=headers,
-                              data=body.encode() if body else b'', timeout=5)
+            r = _req.get(url, headers=hdrs, timeout=5) if method=='GET' else \
+                _req.post(url, headers=hdrs, data=(body or b''), timeout=5)
             return r.json().get('result')
         else:
-            req = _urllib.Request(url, data=(body.encode() if body else None),
-                                  headers=headers, method=method)
+            req = _urllib.Request(url, data=(body if body else None), headers=hdrs, method=method)
             with _urllib.urlopen(req, timeout=5) as resp:
                 return json.loads(resp.read()).get('result')
     except Exception as e:
-        print(f'[redis] {method} {path} error: {e}')
+        print(f'[redis] {e}')
         return None
 
 def _rset(key, value):
-    """Store a Python object as JSON string in Redis."""
-    encoded = json.dumps(value)
-    _redis('POST', f'/set/{key}', encoded)
+    _redis('POST', f'/set/{key}', json.dumps(value).encode())
 
 def _rget(key):
-    """Get a Python object from Redis (was stored as JSON string)."""
     raw = _redis('GET', f'/get/{key}')
     if raw is None: return None
-    try:    return json.loads(raw)
+    try: return json.loads(raw)
     except: return raw
 
 def _rdel(key):
     _redis('POST', f'/del/{key}')
 
 def _rkeys(pattern):
-    """Get all keys matching pattern."""
     raw = _redis('POST', f'/keys/{pattern}')
     return raw if isinstance(raw, list) else []
 
-# ─── IN-MEMORY CACHE (warmed from Redis on startup) ──────────────────────────
-_status     = {}   # phone -> status dict
-_crane_q    = {}   # cmd_id -> command
-_crane_ctrs = {}   # phone -> [containers]
-_lock       = threading.Lock()
+# ─── IN-MEMORY CACHE ─────────────────────────────────────────────────────────
+_fb   = {}   # phone -> status
+_ig   = {}   # phone -> status
+_crane_q    = {}
+_crane_ctrs = {}
+_lock = threading.Lock()
 
 def _load_all():
-    """Restore all data from Redis on startup."""
     if not UPSTASH_URL:
-        print('[startup] No UPSTASH_URL set — running in-memory only (data lost on redeploy)')
+        print('[startup] No Upstash — running in-memory only')
         return
-    print('[startup] Loading data from Upstash Redis...')
-    # Load phone statuses
-    keys = _rkeys('status:*')
-    for key in keys:
-        phone = key.replace('status:', '')
-        data = _rget(key)
-        if data: _status[phone] = data
-    # Load crane queue
+    print('[startup] Loading from Upstash...')
+    for key in _rkeys('fb:status:*'):
+        phone = key.replace('fb:status:', '')
+        d = _rget(key)
+        if d: _fb[phone] = d
+    for key in _rkeys('ig:status:*'):
+        phone = key.replace('ig:status:', '')
+        d = _rget(key)
+        if d: _ig[phone] = d
     q = _rget('crane:queue')
     if q: _crane_q.update(q)
-    # Load container cache
     c = _rget('crane:containers')
     if c: _crane_ctrs.update(c)
-    print(f'[startup] Loaded {len(_status)} phones, {len(_crane_q)} crane commands')
+    print(f'[startup] FB phones: {list(_fb.keys())} | IG phones: {list(_ig.keys())}')
 
-def _save_status(phone, data):
-    _status[phone] = data
-    _rset(f'status:{phone}', data)
+# ─── FOLLOWER HISTORY (24h delta) ────────────────────────────────────────────
+def _parse_followers(raw):
+    s = str(raw).strip().upper().replace(',','').replace(' ','')
+    if not s or s in ('?','—',''):
+        return 0
+    try:
+        if s.endswith('K'): return int(float(s[:-1]) * 1000)
+        if s.endswith('M'): return int(float(s[:-1]) * 1_000_000)
+        return int(float(s))
+    except: return 0
 
-def _save_crane_q():
-    _rset('crane:queue', _crane_q)
+def _update_follower_history(platform, phone, accounts):
+    """Store follower counts and compute 24h deltas. Returns dict of deltas."""
+    now = time.time()
+    hist_key = f'{platform}:fh:{phone}'
+    history  = _rget(hist_key) or {}
+    deltas   = {}
 
-def _save_crane_ctrs():
-    _rset('crane:containers', _crane_ctrs)
+    for acc_num, acc in accounts.items():
+        followers = _parse_followers(acc.get('followers', 0))
+        acc_hist  = history.get(str(acc_num), [])
+        # Add current entry
+        acc_hist.append({'ts': now, 'v': followers})
+        # Keep last 25h only
+        acc_hist = [e for e in acc_hist if now - e['ts'] < 25 * 3600]
+        # Find entry closest to 24h ago (within 2h tolerance)
+        target = now - 86400
+        closest = min(acc_hist, key=lambda e: abs(e['ts'] - target), default=None)
+        if closest and abs(closest['ts'] - target) < 7200:
+            deltas[str(acc_num)] = followers - closest['v']
+        else:
+            deltas[str(acc_num)] = None
+        history[str(acc_num)] = acc_hist
+
+    _rset(hist_key, history)
+    return deltas
+
+# ─── FIRST-SEEN TRACKING (account created date) ──────────────────────────────
+def _track_first_seen(platform, phone, accounts):
+    """Record the first time we see each account (approximate created date)."""
+    now = time.time()
+    key = f'{platform}:created:{phone}'
+    created = _rget(key) or {}
+    changed = False
+    for acc_num in accounts:
+        if str(acc_num) not in created:
+            created[str(acc_num)] = now
+            changed = True
+    if changed: _rset(key, created)
+    return created
+
+def _get_first_seen(platform, phone):
+    return _rget(f'{platform}:created:{phone}') or {}
+
+# ─── STATUS SAVE/LOAD ─────────────────────────────────────────────────────────
+def _save(platform, phone, data):
+    store = _fb if platform == 'fb' else _ig
+    store[phone] = data
+    _rset(f'{platform}:status:{phone}', data)
+
+def _get(platform, phone):
+    store = _fb if platform == 'fb' else _ig
+    return store.get(phone)
 
 # ─── DAILY SNAPSHOTS ─────────────────────────────────────────────────────────
 _today = datetime.date.today().isoformat()
@@ -110,35 +164,35 @@ _today = datetime.date.today().isoformat()
 def _maybe_snapshot():
     global _today
     today = datetime.date.today().isoformat()
-    if today == _today:
-        return
-    yesterday = _today
-    _today = today
+    if today == _today: return
+    yesterday, _today = _today, today
     try:
         snap = {}
-        for phone, s in _status.items():
-            snap[phone] = {
-                'reels_posted':   s.get('reels_posted', 0),
-                'reels_verified': s.get('reels_verified', 0),
-                'accounts':       s.get('accounts', {}),
-                'date':           yesterday,
-            }
+        for platform, store in [('fb', _fb), ('ig', _ig)]:
+            snap[platform] = {}
+            for phone, s in store.items():
+                snap[platform][phone] = {
+                    'reels_posted': s.get('reels_posted', 0),
+                    'reels_verified': s.get('reels_verified', 0),
+                    'accounts': s.get('accounts', {}),
+                    'date': yesterday,
+                }
         _rset(f'snapshot:{yesterday}', snap)
         print(f'[snapshot] Saved {yesterday}')
-        # Keep last 30 days — delete older ones
-        all_snaps = _rkeys('snapshot:*')
-        for old_key in sorted(all_snaps)[:-30]:
-            _rdel(old_key)
+        all_snaps = sorted(_rkeys('snapshot:*'))
+        for old in all_snaps[:-30]: _rdel(old)
     except Exception as e:
-        print(f'[snapshot] Error: {e}')
+        print(f'[snapshot] {e}')
 
 def _list_snapshots():
-    keys = _rkeys('snapshot:*')
-    dates = sorted([k.replace('snapshot:', '') for k in keys], reverse=True)
-    return dates
+    return sorted([k.replace('snapshot:', '') for k in _rkeys('snapshot:*')], reverse=True)
 
-def _load_snapshot(date):
-    return _rget(f'snapshot:{date}')
+# ─── CRANE ────────────────────────────────────────────────────────────────────
+def _save_crane_q():
+    _rset('crane:queue', _crane_q)
+
+def _save_crane_ctrs():
+    _rset('crane:containers', _crane_ctrs)
 
 # ─── HTTP HANDLER ─────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
@@ -151,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
-    def json_out(self, data, status=200):
+    def out(self, data, status=200):
         body = json.dumps(data).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
@@ -161,107 +215,121 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         _maybe_snapshot()
-        path = urlparse(self.path).path
+        p = urlparse(self.path).path
 
-        if path.startswith('/status/'):
-            phone = path.split('/')[-1]
-            self.json_out(_status.get(phone))
-            return
+        # Status endpoints
+        for platform in ('fb', 'ig'):
+            if p.startswith(f'/status/{platform}/'):
+                phone = p.split('/')[-1]
+                data  = _get(platform, phone)
+                if data:
+                    # Enrich with first-seen dates
+                    created = _get_first_seen(platform, phone)
+                    if data.get('accounts'):
+                        for num, acc in data['accounts'].items():
+                            acc['created_at'] = created.get(str(num))
+                self.out(data)
+                return
 
-        if path == '/all':
-            self.json_out(_status)
-            return
+            if p == f'/all/{platform}':
+                store = _fb if platform == 'fb' else _ig
+                result = {}
+                for phone, data in store.items():
+                    created = _get_first_seen(platform, phone)
+                    if data.get('accounts'):
+                        for num, acc in data['accounts'].items():
+                            acc['created_at'] = created.get(str(num))
+                    result[phone] = data
+                self.out(result)
+                return
 
-        if path == '/snapshots':
-            self.json_out({'dates': _list_snapshots()})
-            return
+        # Snapshots
+        if p == '/snapshots':
+            self.out({'dates': _list_snapshots()}); return
+        if p.startswith('/snapshot/'):
+            self.out(_rget(f'snapshot:{p.split("/")[-1]}') or {}); return
 
-        if path.startswith('/snapshot/'):
-            date = path.split('/')[-1]
-            snap = _load_snapshot(date)
-            self.json_out(snap if snap else {})
-            return
+        # Crane
+        if p == '/crane/queue':
+            recent = sorted(_crane_q.values(), key=lambda x: x.get('created',0), reverse=True)[:30]
+            self.out({'commands': recent}); return
+        if p == '/crane/pending':
+            self.out({'commands': [v for v in _crane_q.values() if v['status']=='pending']}); return
+        if p.startswith('/crane/containers/'):
+            phone = p.split('/')[-1]
+            self.out({'phone': phone, 'containers': _crane_ctrs.get(phone, [])}); return
+        if p.startswith('/crane/state/'):
+            phone = p.split('/')[-1]
+            self.out({'state': _rget(f'ctr_state:{phone}') or {}}); return
 
-        if path == '/crane/queue':
-            recent = sorted(_crane_q.values(),
-                            key=lambda x: x.get('created', 0), reverse=True)[:30]
-            self.json_out({'commands': recent})
-            return
-
-        if path == '/crane/pending':
-            pending = [v for v in _crane_q.values() if v['status'] == 'pending']
-            self.json_out({'commands': pending})
-            return
-
-        if path.startswith('/crane/containers/'):
-            phone = path.split('/')[-1]
-            self.json_out({'phone': phone, 'containers': _crane_ctrs.get(phone, [])})
-            return
-
-        self.json_out({})
+        self.out({})
 
     def do_POST(self):
         _maybe_snapshot()
-        path = urlparse(self.path).path
+        p = urlparse(self.path).path
         length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(length)
-        try:    data = json.loads(body) if body else {}
+        try: data = json.loads(body) if body else {}
         except: data = {}
 
-        if path.startswith('/update/'):
-            phone = path.split('/')[-1]
-            with _lock:
-                _save_status(phone, data)
-            self.json_out({'ok': True})
-            return
+        # Platform status updates
+        for platform in ('fb', 'ig'):
+            if p.startswith(f'/update/{platform}/'):
+                phone = p.split('/')[-1]
+                with _lock:
+                    # Compute 24h follower deltas
+                    if data.get('accounts'):
+                        deltas   = _update_follower_history(platform, phone, data['accounts'])
+                        created  = _track_first_seen(platform, phone, data['accounts'])
+                        for acc_num, acc in data['accounts'].items():
+                            acc['delta_24h']   = deltas.get(str(acc_num))
+                            acc['created_at']  = created.get(str(acc_num))
+                    _save(platform, phone, data)
+                self.out({'ok': True}); return
 
-        if path == '/crane/command':
+        # Crane
+        if p == '/crane/command':
             cmd_id = str(uuid.uuid4())[:8]
             with _lock:
                 _crane_q[cmd_id] = {
-                    'id':            cmd_id,
-                    'phone':         data.get('phone', 1),
-                    'action':        data.get('action', 'list'),
-                    'name':          data.get('name', ''),
-                    'container_num': data.get('container_num', ''),
-                    'status':        'pending',
-                    'result':        '',
-                    'created':       time.time(),
+                    'id': cmd_id, 'phone': data.get('phone',1),
+                    'action': data.get('action','list'),
+                    'name': data.get('name',''),
+                    'container_num': data.get('container_num',''),
+                    'status': 'pending', 'result': '', 'created': time.time(),
                 }
-                done = sorted(
-                    [v for v in _crane_q.values() if v['status'] != 'pending'],
-                    key=lambda x: x.get('created', 0), reverse=True
-                )
-                for old in done[100:]:
-                    _crane_q.pop(old['id'], None)
+                done = sorted([v for v in _crane_q.values() if v['status']!='pending'],
+                              key=lambda x:x.get('created',0), reverse=True)
+                for old in done[100:]: _crane_q.pop(old['id'], None)
                 _save_crane_q()
-            self.json_out({'ok': True, 'id': cmd_id})
-            return
+            self.out({'ok': True, 'id': cmd_id}); return
 
-        if path.startswith('/crane/result/'):
-            cmd_id = path.split('/')[-1]
+        if p.startswith('/crane/result/'):
+            cmd_id = p.split('/')[-1]
             with _lock:
                 if cmd_id in _crane_q:
-                    _crane_q[cmd_id]['status']  = data.get('status', 'done')
-                    _crane_q[cmd_id]['result']  = data.get('result', '')
+                    _crane_q[cmd_id]['status']  = data.get('status','done')
+                    _crane_q[cmd_id]['result']  = data.get('result','')
                     _crane_q[cmd_id]['done_at'] = time.time()
                     _save_crane_q()
-            self.json_out({'ok': True})
-            return
+            self.out({'ok': True}); return
 
-        if path.startswith('/crane/containers/'):
-            phone = path.split('/')[-1]
+        if p.startswith('/crane/containers/'):
+            phone = p.split('/')[-1]
             with _lock:
-                _crane_ctrs[phone] = data.get('containers', [])
+                _crane_ctrs[phone] = data.get('containers',[])
                 _save_crane_ctrs()
-            self.json_out({'ok': True})
-            return
+            self.out({'ok': True}); return
 
-        self.json_out({})
+        if p.startswith('/crane/state/'):
+            phone = p.split('/')[-1]
+            _rset(f'ctr_state:{phone}', data.get('state',{}))
+            self.out({'ok': True}); return
 
+        self.out({})
 
 if __name__ == '__main__':
     _load_all()
     port = int(os.environ.get('PORT', 5050))
-    print(f'Farm Dashboard on port {port} | Upstash: {"connected" if UPSTASH_URL else "NOT SET"}')
+    print(f'Farm Dashboard v2 | Port {port} | Upstash: {"OK" if UPSTASH_URL else "NOT SET"}')
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
