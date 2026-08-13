@@ -371,6 +371,7 @@ function buildCards(){
             <option value="fb_reel_auto_v3.py">FB v3 (3 unique)</option>
             <option value="fb_reel_auto_v4.py">FB v4 (1×5)</option>
             <option value="ig_reel_auto_v3.py">IG v3 (3 unique)</option>
+            <option value="fb_account_creator.py">FB Account Creator</option>
           </select>
           <select id="crane-link-${n}" onchange="updateCommand(${n})" style="background:var(--s1);border:1px solid var(--b2);color:var(--t2);border-radius:6px;padding:4px 8px;font-size:11px;font-family:inherit">
             <option value="0">No link</option>
@@ -419,7 +420,8 @@ function buildAccRows(p, n, ctrs, ac, linkCls, flwCls){
       <div class="detail-grid">
         <div class="dg-item"><div class="dg-label">Followers</div><div class="dg-value big ${ac}" id="dflw-${p}-${n}-${a}">—</div><div class="dg-sub" id="dflw-sub-${p}-${n}-${a}">—</div></div>
         <div class="dg-item"><div class="dg-label">+24h Change</div><div class="dg-value" id="ddelta-${p}-${n}-${a}">—</div><div class="dg-sub" id="ddelta-sub-${p}-${n}-${a}"></div></div>
-        <div class="dg-item"><div class="dg-label">Views</div><div class="dg-value muted" id="dviews-${p}-${n}-${a}">—</div><div class="dg-sub">Total reel views</div></div>
+        <div class="dg-item"><div class="dg-label">Views</div><div class="dg-value muted" id="dviews-${p}-${n}-${a}">—</div><div class="dg-sub" id="dviews-sub-${p}-${n}-${a}">Total reel views</div></div>
+        <div class="dg-item"><div class="dg-label">Views +24h</div><div class="dg-value" id="dviews-delta-${p}-${n}-${a}">—</div><div class="dg-sub">Views gained today</div></div>
         <div class="dg-item"><div class="dg-label">Reels Posted</div><div class="dg-value" id="dreels-${p}-${n}-${a}">—</div><div class="dg-sub" id="dreels-sub-${p}-${n}-${a}"></div></div>
         <div class="dg-item"><div class="dg-label">Created</div><div class="dg-value" id="dcreated-${p}-${n}-${a}">—</div><div class="dg-sub" id="dcreated-sub-${p}-${n}-${a}"></div></div>
         <div class="dg-item"><div class="dg-label">Last Active</div><div class="dg-value" id="dlast-${p}-${n}-${a}">—</div><div class="dg-sub">Last data received</div></div>
@@ -438,21 +440,17 @@ async function load(){
   const linkCls=p==='fb'?'detail-link':'detail-link ig-link';
   let totalReels=0, active=0, totalFlw=0, totalDelta=0, deltaCnt=0;
 
-  for(const[num,cfg]of Object.entries(PHONES)){
-    const n=parseInt(num);
-
-    // Fetch status AND container list in parallel
+  // Fetch ALL phones in parallel — much faster than sequential
+  const phoneNums = Object.keys(PHONES).map(Number);
+  const results = await Promise.all(phoneNums.map(async n => {
     let s=null, ctrs=[];
-    try{
-      const [r1,r2] = await Promise.all([
-        fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(4000)}),
-        fetch(`${API}/crane/containers/${n}`,{signal:AbortSignal.timeout(4000)})
-      ]);
-      s = await r1.json();
-      const d2 = await r2.json();
-      ctrs = (d2.containers||[]).sort((a,b)=>a.num-b.num);
-    }catch(e){}
+    try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok)s=await r.json();}catch(e){}
+    try{const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok){const d=await r.json();ctrs=(d.containers||[]).sort((a,b)=>a.num-b.num);}}catch(e){}
+    return {n, s, ctrs};
+  }));
 
+  for(const {n, s, ctrs} of results){
+    const cfg=PHONES[n];
     const run=s?.status==='running', err=s?.status==='error';
     if(run)active++;
     if(s)totalReels+=s.reels_posted||0;
@@ -561,6 +559,8 @@ function updateDetail(p,n,i,acc,s){
   if(e(`dreels-${p}-${n}-${i}`)) e(`dreels-${p}-${n}-${i}`).textContent=acc.reels_posted??'—';
   if(e(`dreels-sub-${p}-${n}-${i}`)) e(`dreels-sub-${p}-${n}-${i}`).textContent=s?.current_container===i?'Currently active':'';
   if(e(`dviews-${p}-${n}-${i}`)) e(`dviews-${p}-${n}-${i}`).textContent=acc.views?fmt(acc.views):'—';
+  if(e(`dviews-delta-${p}-${n}-${i}`)){const vd=fmtDelta(acc.views_delta_24h);const el=e(`dviews-delta-${p}-${n}-${i}`);el.textContent=vd.text;el.className=`dg-value ${vd.cls==='pos'?'green':vd.cls==='neg'?'red':''}`;}
+  if(e(`dviews-sub-${p}-${n}-${i}`)) e(`dviews-sub-${p}-${n}-${i}`).textContent=acc.views?fmt(acc.views)+' total views':'—';
   if(e(`dcreated-${p}-${n}-${i}`)){e(`dcreated-${p}-${n}-${i}`).textContent=fmtDate(acc.created_at);}
   if(e(`dcreated-sub-${p}-${n}-${i}`)){e(`dcreated-sub-${p}-${n}-${i}`).textContent=fmtDateFull(acc.created_at);}
   if(e(`dlast-${p}-${n}-${i}`)){e(`dlast-${p}-${n}-${i}`).textContent=s?.last_update?fmtLastUpdate(s.last_update):'—';}
@@ -580,7 +580,7 @@ function toggleDetail(n,i){
 function ctrNum(name){const n=parseInt(name);if(!isNaN(n))return n;const m=name.match(/:(\d+)$/);return m?parseInt(m[1]):null;}
 
 async function craneCmd(phone,action,name='',num=''){
-  const body={phone:parseInt(phone),action,name,container_num:num};
+  const body={phone:parseInt(phone),action,name,container_num:num,platform:platform};
   const r=await fetch(API+'/crane/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await r.json();
   if(!craneLogs[phone])craneLogs[phone]=[];
@@ -612,7 +612,7 @@ async function pollCmd(phone,id){
 
 async function refreshContainers(phone){
   try{
-    const[r1,r2]=await Promise.all([fetch(API+'/crane/containers/'+phone),fetch(API+'/crane/state/'+phone)]);
+    const[r1,r2]=await Promise.all([fetch(API+'/crane/containers/'+platform+'/'+phone),fetch(API+'/crane/state/'+platform+'/'+phone)]);
     const d1=await r1.json();const d2=await r2.json();
     craneCtrs[phone]=d1.containers||[];craneState[phone]=d2.state||{};
     if(!craneSelected[phone])craneSelected[phone]=new Set();

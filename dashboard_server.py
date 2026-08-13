@@ -72,7 +72,8 @@ def _rkeys(pattern):
 _fb   = {}   # phone -> status
 _ig   = {}   # phone -> status
 _crane_q    = {}
-_crane_ctrs = {}
+_crane_ctrs_fb = {}   # phone -> FB containers
+_crane_ctrs_ig = {}   # phone -> IG containers
 _lock = threading.Lock()
 
 def _load_all():
@@ -80,6 +81,7 @@ def _load_all():
         print('[startup] No Upstash — running in-memory only')
         return
     print('[startup] Loading from Upstash...')
+    # Phone statuses
     for key in _rkeys('fb:status:*'):
         phone = key.replace('fb:status:', '')
         d = _rget(key)
@@ -88,11 +90,22 @@ def _load_all():
         phone = key.replace('ig:status:', '')
         d = _rget(key)
         if d: _ig[phone] = d
+    # Crane queue
     q = _rget('crane:queue')
     if q: _crane_q.update(q)
-    c = _rget('crane:containers')
-    if c: _crane_ctrs.update(c)
-    print(f'[startup] FB phones: {list(_fb.keys())} | IG phones: {list(_ig.keys())}')
+    # Container lists — load new platform-specific keys
+    cfb = _rget('crane:containers:fb')
+    if cfb: _crane_ctrs_fb.update(cfb)
+    cig = _rget('crane:containers:ig')
+    if cig: _crane_ctrs_ig.update(cig)
+    # MIGRATION: if old key exists and new fb key is empty, migrate
+    if not _crane_ctrs_fb:
+        old = _rget('crane:containers')
+        if old:
+            _crane_ctrs_fb.update(old)
+            _rset('crane:containers:fb', _crane_ctrs_fb)
+            print(f'[startup] Migrated old containers to fb key: {list(old.keys())}')
+    print(f'[startup] FB phones: {list(_fb.keys())} | IG phones: {list(_ig.keys())} | FB ctrs: {list(_crane_ctrs_fb.keys())}')
 
 # ─── FOLLOWER HISTORY (24h delta) ────────────────────────────────────────────
 def _parse_followers(raw):
@@ -106,7 +119,7 @@ def _parse_followers(raw):
     except: return 0
 
 def _update_follower_history(platform, phone, accounts):
-    """Store follower counts and compute 24h deltas. Returns dict of deltas."""
+    """Store follower + views counts and compute 24h deltas."""
     now = time.time()
     hist_key = f'{platform}:fh:{phone}'
     history  = _rget(hist_key) or {}
@@ -114,18 +127,22 @@ def _update_follower_history(platform, phone, accounts):
 
     for acc_num, acc in accounts.items():
         followers = _parse_followers(acc.get('followers', 0))
+        views     = int(acc.get('views', 0) or 0)
         acc_hist  = history.get(str(acc_num), [])
-        # Add current entry
-        acc_hist.append({'ts': now, 'v': followers})
+        # Add current entry with both followers and views
+        acc_hist.append({'ts': now, 'v': followers, 'views': views})
         # Keep last 25h only
         acc_hist = [e for e in acc_hist if now - e['ts'] < 25 * 3600]
-        # Find entry closest to 24h ago (within 2h tolerance)
+        # Find entry closest to 24h ago
         target = now - 86400
         closest = min(acc_hist, key=lambda e: abs(e['ts'] - target), default=None)
         if closest and abs(closest['ts'] - target) < 7200:
-            deltas[str(acc_num)] = followers - closest['v']
+            deltas[str(acc_num)] = {
+                'followers': followers - closest['v'],
+                'views':     views - closest.get('views', 0),
+            }
         else:
-            deltas[str(acc_num)] = None
+            deltas[str(acc_num)] = {'followers': None, 'views': None}
         history[str(acc_num)] = acc_hist
 
     _rset(hist_key, history)
@@ -191,8 +208,10 @@ def _list_snapshots():
 def _save_crane_q():
     _rset('crane:queue', _crane_q)
 
-def _save_crane_ctrs():
-    _rset('crane:containers', _crane_ctrs)
+def _save_crane_ctrs(platform, phone, data):
+    store = _crane_ctrs_fb if platform == 'fb' else _crane_ctrs_ig
+    store[phone] = data
+    _rset(f'crane:containers:{platform}', store)
 
 # ─── HTTP HANDLER ─────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
@@ -255,12 +274,28 @@ class Handler(BaseHTTPRequestHandler):
             self.out({'commands': recent}); return
         if p == '/crane/pending':
             self.out({'commands': [v for v in _crane_q.values() if v['status']=='pending']}); return
+
+        # Platform-aware container endpoints: /crane/containers/fb/1 or /crane/containers/ig/1
+        for plat in ('fb', 'ig'):
+            if p.startswith(f'/crane/containers/{plat}/'):
+                phone = p.split('/')[-1]
+                store = _crane_ctrs_fb if plat == 'fb' else _crane_ctrs_ig
+                self.out({'phone': phone, 'containers': store.get(phone, [])}); return
+
+        # Legacy: /crane/containers/1 (default to fb)
         if p.startswith('/crane/containers/'):
             phone = p.split('/')[-1]
-            self.out({'phone': phone, 'containers': _crane_ctrs.get(phone, [])}); return
+            self.out({'phone': phone, 'containers': _crane_ctrs_fb.get(phone, [])}); return
+
+        # Platform-aware state: /crane/state/fb/1 or /crane/state/ig/1
+        for plat in ('fb', 'ig'):
+            if p.startswith(f'/crane/state/{plat}/'):
+                phone = p.split('/')[-1]
+                self.out({'state': _rget(f'ctr_state:{plat}:{phone}') or {}}); return
+
         if p.startswith('/crane/state/'):
             phone = p.split('/')[-1]
-            self.out({'state': _rget(f'ctr_state:{phone}') or {}}); return
+            self.out({'state': _rget(f'ctr_state:fb:{phone}') or {}}); return
 
         self.out({})
 
@@ -277,13 +312,15 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith(f'/update/{platform}/'):
                 phone = p.split('/')[-1]
                 with _lock:
-                    # Compute 24h follower deltas
+                    # Compute 24h follower + views deltas
                     if data.get('accounts'):
                         deltas   = _update_follower_history(platform, phone, data['accounts'])
                         created  = _track_first_seen(platform, phone, data['accounts'])
                         for acc_num, acc in data['accounts'].items():
-                            acc['delta_24h']   = deltas.get(str(acc_num))
-                            acc['created_at']  = created.get(str(acc_num))
+                            d = deltas.get(str(acc_num), {})
+                            acc['delta_24h']       = d.get('followers') if isinstance(d, dict) else d
+                            acc['views_delta_24h'] = d.get('views') if isinstance(d, dict) else None
+                            acc['created_at']      = created.get(str(acc_num))
                     _save(platform, phone, data)
                 self.out({'ok': True}); return
 
@@ -314,16 +351,29 @@ class Handler(BaseHTTPRequestHandler):
                     _save_crane_q()
             self.out({'ok': True}); return
 
+        # Platform-aware container update: /crane/containers/fb/1 or /crane/containers/ig/1
+        for plat in ('fb', 'ig'):
+            if p.startswith(f'/crane/containers/{plat}/'):
+                phone = p.split('/')[-1]
+                with _lock: _save_crane_ctrs(plat, phone, data.get('containers',[]))
+                self.out({'ok': True}); return
+
+        # Legacy /crane/containers/1 → default fb
         if p.startswith('/crane/containers/'):
             phone = p.split('/')[-1]
-            with _lock:
-                _crane_ctrs[phone] = data.get('containers',[])
-                _save_crane_ctrs()
+            with _lock: _save_crane_ctrs('fb', phone, data.get('containers',[]))
             self.out({'ok': True}); return
+
+        # Platform-aware state: /crane/state/fb/1 or /crane/state/ig/1
+        for plat in ('fb', 'ig'):
+            if p.startswith(f'/crane/state/{plat}/'):
+                phone = p.split('/')[-1]
+                _rset(f'ctr_state:{plat}:{phone}', data.get('state',{}))
+                self.out({'ok': True}); return
 
         if p.startswith('/crane/state/'):
             phone = p.split('/')[-1]
-            _rset(f'ctr_state:{phone}', data.get('state',{}))
+            _rset(f'ctr_state:fb:{phone}', data.get('state',{}))
             self.out({'ok': True}); return
 
         self.out({})
