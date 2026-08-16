@@ -236,6 +236,17 @@ class Handler(BaseHTTPRequestHandler):
         _maybe_snapshot()
         p = urlparse(self.path).path
 
+        # Admin: clear stale container data so reporters can re-populate
+        if p == '/admin/reset-containers':
+            with _lock:
+                _crane_ctrs_fb.clear()
+                _crane_ctrs_ig.clear()
+                _rset('crane:containers:fb', {})
+                _rset('crane:containers:ig', {})
+                _rdel('crane:containers')  # clear legacy key too
+            self.out({'ok': True, 'msg': 'Container data cleared. Reporters will re-populate within 60s.'})
+            return
+
         # Status endpoints
         for platform in ('fb', 'ig'):
             if p.startswith(f'/status/{platform}/'):
