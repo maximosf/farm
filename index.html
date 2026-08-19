@@ -601,8 +601,19 @@ async function deleteAndCreate(phone){
 }
 function toggleCrane(phone){
   craneOpen[phone]=!craneOpen[phone];const panel=document.getElementById('crane-panel-'+phone);
-  if(craneOpen[phone]){panel?.classList.add('open');refreshContainers(phone);craneSendList(phone);}
-  else{panel?.classList.remove('open');}
+  if(craneOpen[phone]){
+    panel?.classList.add('open');
+    // Only send list command if we have no cached data yet
+    if(craneCtrs[phone]&&craneCtrs[phone].length){
+      renderCraneContainers(phone);
+      updateCommand(phone);
+    }else{
+      refreshContainers(phone);
+      craneSendList(phone);
+    }
+  }else{
+    panel?.classList.remove('open');
+  }
 }
 function openCreateModal(phone){modalPhone=phone;document.getElementById('modal-name').value='';document.getElementById('modal-create').classList.add('open');setTimeout(()=>document.getElementById('modal-name').focus(),100);}
 function closeModal(){document.getElementById('modal-create').classList.remove('open');modalPhone=null;}

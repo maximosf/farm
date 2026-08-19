@@ -203,7 +203,7 @@ def _save(platform, phone, data):
     store = _fb if platform == 'fb' else _ig
     existing = store.get(phone, {})
 
-    # Always merge accounts — never overwrite good data with empty
+    # ALWAYS carry forward existing accounts — never wipe them
     if existing.get('accounts'):
         merged = dict(existing['accounts'])  # start with everything we know
         incoming = data.get('accounts') or {}
@@ -212,22 +212,27 @@ def _save(platform, phone, data):
             if key not in merged:
                 merged[key] = acc
             else:
-                # Update fields — but never replace a real follower count with '?' or 0
                 for field, val in acc.items():
                     if field == 'followers':
                         if val and str(val) not in ('?', '', '0'):
                             merged[key]['followers'] = val
-                        # else: keep existing good value
                     else:
                         if val is not None:
                             merged[key][field] = val
         data['accounts'] = merged
+    # If no existing accounts but new data has some, keep those
+    elif not data.get('accounts') and existing.get('accounts'):
+        data['accounts'] = existing['accounts']
 
-    # Preserve reels_posted/verified totals — always take the higher value
+    # Preserve reels_posted/verified — always take the higher value
     for field in ('reels_posted', 'reels_verified'):
         old_val = existing.get(field) or 0
         new_val = data.get(field) or 0
         data[field] = max(old_val, new_val)
+
+    # Preserve last_update if new data doesn't have it
+    if not data.get('last_update') and existing.get('last_update'):
+        data['last_update'] = existing['last_update']
 
     store[phone] = data
     _rset(f'{platform}:status:{phone}', data)
