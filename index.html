@@ -8,539 +8,234 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#070810;--s1:#0c0d1a;--s2:#10111f;--s3:#141628;
-  --b1:#1a1b2e;--b2:#232540;--b3:#2e3055;
-  --t1:#eef0f8;--t2:#8b90b8;--t3:#4a4f72;
-  --fb:#1877f2;--fb2:#4299ff;
+  --bg:#060710;--s1:#0b0d1c;--s2:#0f1020;--s3:#131425;
+  --b1:#181a2e;--b2:#202240;--b3:#2a2d52;
+  --t1:#eef0f8;--t2:#8b90b8;--t3:#464a6a;
+  --fb:#1877f2;--fb2:#4299ff;--fb3:#1a56d6;
   --ig:#c13584;--ig2:#e1306c;--ig3:#f77737;
-  --green:#10b981;--yellow:#f59e0b;--red:#ef4444;--purple:#7c3aed;
-  --radius:14px;--radius-sm:8px;
+  --green:#10b981;--green2:#059669;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#7c3aed;--purple2:#6d28d9;
+  --radius:14px;
 }
 body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 50% -10%,rgba(24,119,242,.06),transparent);pointer-events:none}
-
-/* ── HEADER ── */
-header{position:sticky;top:0;z-index:200;background:rgba(7,8,16,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--b1);height:62px;display:flex;align-items:center;padding:0 24px;gap:20px}
-.logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;letter-spacing:-.3px;margin-right:8px}
-.logo-mark{width:32px;height:32px;background:linear-gradient(135deg,var(--fb),var(--purple));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 20px rgba(24,119,242,.3)}
-.tabs{display:flex;gap:2px;background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:3px}
-.tab{padding:5px 18px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .2s;color:var(--t3);background:transparent;display:flex;align-items:center;gap:6px}
-.tab.active-fb{background:var(--fb);color:#fff;box-shadow:0 0 16px rgba(24,119,242,.4)}
-.tab.active-ig{background:linear-gradient(135deg,var(--ig),var(--ig2));color:#fff;box-shadow:0 0 16px rgba(193,53,132,.4)}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 20% -5%,rgba(24,119,242,.05),transparent),radial-gradient(ellipse 50% 40% at 80% 100%,rgba(124,58,237,.04),transparent);pointer-events:none;z-index:0}
+header{position:sticky;top:0;z-index:200;background:rgba(6,7,16,.94);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-bottom:1px solid var(--b1);height:60px;display:flex;align-items:center;padding:0 20px;gap:16px}
+.logo{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;letter-spacing:-.3px;flex-shrink:0}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--fb),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 20px rgba(24,119,242,.35)}
+.tabs{display:flex;gap:2px;background:var(--s1);border:1px solid var(--b1);border-radius:9px;padding:2px}
+.tab{padding:4px 16px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .2s;color:var(--t3);background:transparent;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.tab.active-fb{background:var(--fb);color:#fff;box-shadow:0 0 14px rgba(24,119,242,.45)}
+.tab.active-ig{background:linear-gradient(135deg,var(--ig),var(--ig2));color:#fff;box-shadow:0 0 14px rgba(193,53,132,.45)}
 .tab:not(.active-fb):not(.active-ig):hover{color:var(--t2);background:var(--s2)}
-.hstats{display:flex;align-items:center;gap:6px;margin-left:auto}
-.hstat{display:flex;flex-direction:column;align-items:center;padding:5px 14px;background:var(--s1);border:1px solid var(--b1);border-radius:9px;min-width:72px}
-.hstat-v{font-size:17px;font-weight:800;line-height:1}
-.hstat-l{font-size:9px;color:var(--t3);font-weight:500;text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
-.hstat-v.fb-c{background:linear-gradient(135deg,var(--fb),var(--fb2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hstat-v.ig-c{background:linear-gradient(135deg,var(--ig2),var(--ig3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.sep{width:1px;height:32px;background:var(--b1)}
-.hbtn{background:linear-gradient(135deg,var(--fb),var(--purple));color:#fff;border:none;padding:7px 16px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s;box-shadow:0 0 16px rgba(24,119,242,.25)}
+.hstats{display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:nowrap}
+.hstat{display:flex;flex-direction:column;align-items:center;padding:4px 12px;background:var(--s1);border:1px solid var(--b1);border-radius:8px;min-width:64px}
+.hstat-v{font-size:16px;font-weight:800;line-height:1.1}
+.hstat-l{font-size:8px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.7px;margin-top:1px}
+.sep{width:1px;height:28px;background:var(--b1);flex-shrink:0}
+.hbtn{background:linear-gradient(135deg,var(--fb),var(--purple));color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s;box-shadow:0 0 14px rgba(24,119,242,.3);flex-shrink:0}
 .hbtn:hover{opacity:.85}
-.hbtn.ig-btn{background:linear-gradient(135deg,var(--ig),var(--ig2));box-shadow:0 0 16px rgba(193,53,132,.25)}
-
-/* ── MAIN ── */
-main{padding:20px 24px;max-width:1560px;margin:0 auto}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
-
-/* ── CARD ── */
-.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);overflow:hidden;transition:border-color .3s,transform .2s}
-.card:hover{transform:translateY(-1px);border-color:var(--b2)}
-.card.running-fb{border-color:rgba(24,119,242,.3)}
-.card.running-ig{border-color:rgba(225,48,108,.3)}
-.card.error{border-color:rgba(239,68,68,.25)}
-
-.card-top{background:linear-gradient(180deg,var(--s2) 0%,var(--s1) 100%);border-bottom:1px solid var(--b1);padding:14px 16px}
-.card-top-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.phone-badge{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;flex-shrink:0}
-.phone-badge.fb-badge{background:linear-gradient(135deg,rgba(24,119,242,.2),rgba(66,153,255,.1));border:1px solid rgba(24,119,242,.3);color:var(--fb2)}
-.phone-badge.ig-badge{background:linear-gradient(135deg,rgba(193,53,132,.2),rgba(225,48,108,.1));border:1px solid rgba(193,53,132,.3);color:var(--ig2)}
-.phone-info{margin-left:10px;flex:1}
-.phone-title{font-size:14px;font-weight:700}
-.phone-ip{font-size:10px;color:var(--t3);font-family:monospace;margin-top:1px}
-.status-pill{display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600}
-.pill-run-fb{background:rgba(24,119,242,.1);color:var(--fb2);border:1px solid rgba(24,119,242,.2)}
-.pill-run-ig{background:rgba(225,48,108,.1);color:var(--ig2);border:1px solid rgba(225,48,108,.2)}
-.pill-idle{background:rgba(74,79,114,.15);color:var(--t3);border:1px solid var(--b1)}
-.pill-err{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-.dot{width:6px;height:6px;border-radius:50%;animation:pulse 1.8s infinite}
+.hbtn.ig-btn{background:linear-gradient(135deg,var(--ig),var(--ig2));box-shadow:0 0 14px rgba(193,53,132,.3)}
+.lu{font-size:9px;color:var(--t3);white-space:nowrap;flex-shrink:0}
+main{padding:16px 20px;max-width:1600px;margin:0 auto;position:relative;z-index:1}
+.summary-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.sum-card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+.sum-label{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.7px}
+.sum-val{font-size:22px;font-weight:900;line-height:1.1}
+.sum-sub{font-size:10px;color:var(--t3);margin-top:1px}
+.c-fb{background:linear-gradient(135deg,var(--fb),var(--fb2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.c-ig{background:linear-gradient(135deg,var(--ig2),var(--ig3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.c-green{color:var(--green)!important}.c-yellow{color:var(--yellow)!important}.c-purple{color:#a78bfa!important}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radius);overflow:hidden;transition:border-color .3s;position:relative}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,transparent);transition:background .4s}
+.card.running-fb{border-color:rgba(24,119,242,.35)}.card.running-fb::before{background:linear-gradient(90deg,transparent,var(--fb),transparent)}
+.card.running-ig{border-color:rgba(225,48,108,.35)}.card.running-ig::before{background:linear-gradient(90deg,transparent,var(--ig2),transparent)}
+.card.has-error{border-color:rgba(239,68,68,.25)}
+.card-head{background:linear-gradient(180deg,var(--s2) 0%,var(--s1) 100%);border-bottom:1px solid var(--b1);padding:12px 14px}
+.ch-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.phone-badge{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0}
+.fb-badge{background:linear-gradient(135deg,rgba(24,119,242,.15),rgba(66,153,255,.08));border:1px solid rgba(24,119,242,.3);color:var(--fb2)}
+.ig-badge{background:linear-gradient(135deg,rgba(193,53,132,.15),rgba(225,48,108,.08));border:1px solid rgba(193,53,132,.3);color:var(--ig2)}
+.phone-info{margin-left:9px;flex:1;min-width:0}
+.phone-title{font-size:13px;font-weight:700}
+.phone-ip{font-size:9px;color:var(--t3);font-family:monospace;margin-top:1px}
+.pill{display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;flex-shrink:0}
+.pill-run-fb{background:rgba(24,119,242,.12);color:var(--fb2);border:1px solid rgba(24,119,242,.25)}
+.pill-run-ig{background:rgba(225,48,108,.12);color:var(--ig2);border:1px solid rgba(225,48,108,.25)}
+.pill-idle{background:rgba(70,74,106,.1);color:var(--t3);border:1px solid var(--b1)}
+.pill-err{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.dot{width:5px;height:5px;border-radius:50%;animation:pulse 1.6s infinite}
 .dot-fb{background:var(--fb2)}.dot-ig{background:var(--ig2)}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
-
-/* Progress */
-.prog-row{display:flex;justify-content:space-between;margin-bottom:5px}
-.prog-label{font-size:10px;color:var(--t3)}
-.prog-pct{font-size:10px;font-weight:700;color:var(--t2)}
-.prog-bar{height:3px;background:var(--b1);border-radius:3px;overflow:hidden}
-.prog-fill{height:100%;border-radius:3px;transition:width .8s ease}
-.prog-fill-fb{background:linear-gradient(90deg,var(--fb),var(--fb2))}
-.prog-fill-ig{background:linear-gradient(90deg,var(--ig),var(--ig2),var(--ig3))}
-
-/* Stats mini row */
-.mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px}
-.ms{background:var(--bg);border:1px solid var(--b1);border-radius:8px;padding:7px 4px;text-align:center}
-.ms-v{font-size:16px;font-weight:800;line-height:1}
-.ms-v.fb-c{background:linear-gradient(135deg,var(--fb),var(--fb2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.ms-v.ig-c{background:linear-gradient(135deg,var(--ig2),var(--ig3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.ms-l{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-top:2px;font-weight:500}
-
-/* Account list */
-.acc-list{max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--b2) transparent}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)}}
+.prog-row{display:flex;justify-content:space-between;margin-bottom:4px}
+.prog-label{font-size:9px;color:var(--t3);font-weight:500}
+.prog-pct{font-size:9px;font-weight:700;color:var(--t2)}
+.prog-bar{height:2px;background:var(--b1);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width .9s ease}
+.fill-fb{background:linear-gradient(90deg,var(--fb),var(--fb2))}
+.fill-ig{background:linear-gradient(90deg,var(--ig),var(--ig2),var(--ig3))}
+.mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px}
+.ms{background:var(--bg);border:1px solid var(--b1);border-radius:7px;padding:6px 3px;text-align:center}
+.ms-v{font-size:15px;font-weight:800;line-height:1}
+.ms-l{font-size:7px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-top:2px;font-weight:600}
+.acc-list{max-height:240px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--b2) transparent}
 .acc-list::-webkit-scrollbar{width:3px}
-.acc-list::-webkit-scrollbar-track{background:transparent}
 .acc-list::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
-
-.acc-section-head{padding:10px 16px 6px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--b1)}
-.acc-section-title{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
-.acc-section-count{font-size:9px;color:var(--t3);font-weight:600}
-
-.acc-row{padding:6px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .15s;border-bottom:1px solid transparent}
+.acc-head{padding:9px 14px 5px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--b1)}
+.acc-head-title{font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.acc-head-count{font-size:8px;color:var(--t3);font-weight:600}
+.acc-row{padding:5px 14px;display:flex;align-items:center;gap:7px;cursor:pointer;transition:background .12s;border-bottom:1px solid transparent}
 .acc-row:hover{background:var(--s2)}
-.acc-row.active-acc{background:rgba(24,119,242,.05)}
-.acc-row.active-acc-ig{background:rgba(193,53,132,.05)}
-.acc-num{width:22px;font-size:10px;color:var(--t3);font-weight:600;flex-shrink:0;text-align:right}
-.acc-name{flex:1;font-size:11px;color:var(--t2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.acc-row.active-acc .acc-name,.acc-row.active-acc-ig .acc-name{font-weight:600;color:var(--t1)}
-.acc-followers{font-size:11px;font-weight:700;color:var(--fb2);min-width:38px;text-align:right}
-.acc-followers.ig-flw{color:var(--ig2)}
-.acc-delta{font-size:10px;font-weight:700;min-width:38px;text-align:right}
-.acc-delta.pos{color:var(--green)}
-.acc-delta.neg{color:var(--red)}
-.acc-delta.zero{color:var(--t3)}
-.acc-badge{font-size:8px;padding:2px 6px;border-radius:20px;font-weight:700;text-transform:uppercase;flex-shrink:0}
-.badge-ok{display:none}
-.badge-verify{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
-.badge-logout{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
-.badge-ban{background:rgba(100,116,139,.12);color:#94a3b8;border:1px solid rgba(100,116,139,.25)}
-.acc-arrow{font-size:10px;color:var(--t3);transition:transform .2s;flex-shrink:0}
-.acc-row.expanded .acc-arrow{transform:rotate(180deg)}
-
-/* Expanded detail panel */
-.acc-detail{display:none;background:var(--bg);border-bottom:1px solid var(--b1);padding:12px 16px 14px 46px}
+.acc-row.acc-active{background:rgba(24,119,242,.05)}
+.acc-row.acc-active-ig{background:rgba(193,53,132,.05)}
+.acc-num{width:20px;font-size:9px;color:var(--t3);font-weight:600;flex-shrink:0;text-align:right}
+.acc-name{flex:1;font-size:10px;color:var(--t2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-row.acc-active .acc-name,.acc-row.acc-active-ig .acc-name{color:var(--t1);font-weight:600}
+.acc-flw{font-size:10px;font-weight:700;color:var(--fb2);min-width:36px;text-align:right;flex-shrink:0}
+.acc-flw.ig{color:var(--ig2)}
+.acc-delta{font-size:9px;font-weight:700;min-width:32px;text-align:right;flex-shrink:0}
+.pos{color:var(--green)}.neg{color:var(--red)}.zero{color:var(--t3)}
+.acc-badge span{font-size:7px;padding:1px 5px;border-radius:20px;font-weight:700;text-transform:uppercase}
+.b-verify{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+.b-logout{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.b-ban{background:rgba(100,116,139,.12);color:#94a3b8;border:1px solid rgba(100,116,139,.3)}
+.acc-arr{font-size:9px;color:var(--t3);transition:transform .2s;flex-shrink:0}
+.acc-row.expanded .acc-arr{transform:rotate(180deg)}
+.acc-detail{display:none;background:var(--bg);border-bottom:1px solid var(--b1);padding:10px 14px 12px 40px}
 .acc-detail.open{display:block}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dg-item{background:var(--s1);border:1px solid var(--b1);border-radius:8px;padding:9px 12px}
-.dg-label{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
-.dg-value{font-size:14px;font-weight:700;color:var(--t1)}
-.dg-value.big{font-size:18px}
-.dg-sub{font-size:10px;color:var(--t3);margin-top:2px}
-.dg-value.green{color:var(--green)}
-.dg-value.red{color:var(--red)}
-.dg-value.muted{color:var(--t3);font-size:12px}
-.detail-link{font-size:11px;color:var(--fb2);text-decoration:none;font-weight:500}
-.detail-link.ig-link{color:var(--ig2)}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.dg-item{background:var(--s1);border:1px solid var(--b1);border-radius:7px;padding:8px 11px}
+.dg-label{font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+.dg-val{font-size:13px;font-weight:700;color:var(--t1)}
+.dg-val.big{font-size:17px}
+.dg-val.c-green{color:var(--green)}.dg-val.c-red{color:var(--red)}.dg-val.muted{color:var(--t3);font-size:11px}
+.dg-sub{font-size:9px;color:var(--t3);margin-top:2px}
+.detail-link{font-size:10px;color:var(--fb2);text-decoration:none;font-weight:600}
+.detail-link.ig{color:var(--ig2)}
 .detail-link:hover{text-decoration:underline}
-
-/* Crane panel */
-.crane-btn{font-size:10px;padding:4px 10px;background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);color:#a78bfa;border-radius:7px;cursor:pointer;font-family:inherit;font-weight:600}
-.crane-btn:hover{background:rgba(124,58,237,.22)}
+.flw-hist{margin-top:5px}
+.fhr{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--b1);font-size:10px}
+.fhr:last-child{border-bottom:none}
+.fhr-date{color:var(--t3);font-size:9px;min-width:45px}
+.fhr-val{font-weight:700;color:var(--t1);min-width:50px;text-align:center}
+.fhr-chg{font-weight:700;min-width:40px;text-align:right}
+.crane-btn{font-size:9px;padding:3px 9px;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);color:#a78bfa;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700}
+.crane-btn:hover{background:rgba(124,58,237,.2)}
 .crane-panel{display:none;border-top:1px solid var(--b1)}
 .crane-panel.open{display:block}
-.ctr-row{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:8px;background:var(--s1);border:1px solid var(--b1)}
-.ctr-row.ctr-active{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.05)}
-.ctr-row.ctr-fresh{border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.05)}
-.ctr-name{font-size:11px;font-weight:600;color:var(--t2);font-family:monospace;flex:1}
-.ctr-cb{width:14px;height:14px;cursor:pointer;accent-color:var(--purple)}
-.ctr-badge{font-size:8px;padding:1px 6px;border-radius:20px;font-weight:700;text-transform:uppercase}
-.ctr-badge-active{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.25)}
-.ctr-badge-fresh{background:rgba(124,58,237,.12);color:#a78bfa;border:1px solid rgba(124,58,237,.25)}
-.cbtn{padding:3px 9px;font-size:10px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-weight:600}
-.cbtn-switch{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
-.cbtn-wipe{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
-.cbtn-del{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
-.crane-log-item{font-size:10px;color:var(--t3);font-family:monospace}
+.ctr-row{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:7px;background:var(--s1);border:1px solid var(--b1)}
+.ctr-row.ctr-active{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.04)}
+.ctr-row.ctr-fresh{border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.04)}
+.ctr-name{font-size:10px;font-weight:600;color:var(--t2);font-family:monospace;flex:1}
+.ctr-cb{width:13px;height:13px;cursor:pointer;accent-color:var(--purple)}
+.ctr-badge{font-size:7px;padding:1px 5px;border-radius:20px;font-weight:700;text-transform:uppercase}
+.ctr-active-b{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.25)}
+.ctr-fresh-b{background:rgba(124,58,237,.12);color:#a78bfa;border:1px solid rgba(124,58,237,.25)}
+.cbtn{padding:2px 7px;font-size:9px;border-radius:5px;border:none;cursor:pointer;font-family:inherit;font-weight:700}
+.cbtn-sw{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.cbtn-wi{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+.cbtn-de{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.crane-log-item{font-size:9px;color:var(--t3);font-family:monospace;padding:1px 0}
 .crane-log-item.done{color:#34d399}.crane-log-item.error{color:#f87171}.crane-log-item.pending{color:#fbbf24}
-
-/* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:var(--s1);border:1px solid var(--b2);border-radius:16px;padding:24px;width:320px}
-.modal-title{font-size:14px;font-weight:700;margin-bottom:14px}
-.modal input{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:8px;padding:9px 12px;color:var(--t1);font-family:inherit;font-size:13px;margin-bottom:14px;outline:none}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:14px;padding:22px;width:300px}
+.modal-title{font-size:13px;font-weight:700;margin-bottom:12px}
+.modal input{width:100%;background:var(--bg);border:1px solid var(--b2);border-radius:7px;padding:8px 11px;color:var(--t1);font-family:inherit;font-size:12px;margin-bottom:12px;outline:none}
 .modal input:focus{border-color:var(--purple)}
-.modal-btns{display:flex;gap:8px}
-.modal-btns .btn{flex:1;padding:8px;font-size:12px;font-weight:600;border:none;border-radius:8px;cursor:pointer;font-family:inherit}
-.btn-confirm{background:linear-gradient(135deg,var(--green),#059669);color:#fff}
+.modal-btns{display:flex;gap:7px}
+.modal-btns button{flex:1;padding:7px;font-size:11px;font-weight:700;border:none;border-radius:7px;cursor:pointer;font-family:inherit}
+.btn-ok{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff}
 .btn-cancel{background:var(--s2);color:var(--t2);border:1px solid var(--b2)}
-
-/* Utilities */
-.btn-sm{padding:5px 12px;font-size:11px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:600;color:#fff;transition:opacity .2s}
+.btn-sm{padding:4px 10px;font-size:10px;border-radius:7px;border:none;cursor:pointer;font-family:inherit;font-weight:700;color:#fff;transition:opacity .2s}
 .btn-sm:hover{opacity:.85}
-.btn-blue{background:linear-gradient(135deg,#1d4ed8,var(--fb))}
-.btn-green{background:linear-gradient(135deg,#059669,var(--green))}
-.btn-red{background:linear-gradient(135deg,#b91c1c,var(--red))}
-.btn-purple{background:linear-gradient(135deg,#5b21b6,var(--purple))}
-.btn-ghost{background:var(--s2);color:var(--t2);border:1px solid var(--b2)}
-.tag{display:inline-block;font-size:9px;padding:2px 7px;border-radius:20px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.tag-fb{background:rgba(24,119,242,.1);color:var(--fb2);border:1px solid rgba(24,119,242,.2)}
-.tag-ig{background:rgba(225,48,108,.1);color:var(--ig2);border:1px solid rgba(225,48,108,.2)}
+.btn-blue{background:linear-gradient(135deg,#1d4ed8,var(--fb))}.btn-green{background:linear-gradient(135deg,var(--green2),var(--green))}.btn-red{background:linear-gradient(135deg,#b91c1c,var(--red))}.btn-purple{background:linear-gradient(135deg,var(--purple2),var(--purple))}.btn-ghost{background:var(--s2);color:var(--t2);border:1px solid var(--b2)}
+.empty{padding:14px;font-size:10px;color:var(--t3);text-align:center}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo"><div class="logo-mark">⬡</div>Farm</div>
   <div class="tabs">
-    <button class="tab active-fb" id="tab-fb" onclick="switchPlatform('fb')">
-      <span>🟦</span> Facebook
-    </button>
-    <button class="tab" id="tab-ig" onclick="switchPlatform('ig')">
-      <span>📸</span> Instagram
-    </button>
+    <button class="tab active-fb" id="tab-fb" onclick="switchPlatform('fb')">🟦 Facebook</button>
+    <button class="tab" id="tab-ig" onclick="switchPlatform('ig')">📸 Instagram</button>
   </div>
   <div class="hstats">
-    <div class="hstat"><div class="hstat-v" id="h-accounts" style="background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">137</div><div class="hstat-l">Accounts</div></div>
+    <div class="hstat"><div class="hstat-v" id="h-accounts">—</div><div class="hstat-l">Accounts</div></div>
     <div class="sep"></div>
     <div class="hstat"><div class="hstat-v" id="h-active">—</div><div class="hstat-l">Active</div></div>
     <div class="sep"></div>
     <div class="hstat"><div class="hstat-v" id="h-reels">—</div><div class="hstat-l">Reels</div></div>
     <div class="sep"></div>
-    <div class="hstat"><div class="hstat-v" id="h-followers">—</div><div class="hstat-l">Followers</div></div>
+    <div class="hstat"><div class="hstat-v" id="h-followers" style="color:var(--fb2)">—</div><div class="hstat-l">Followers</div></div>
     <div class="sep"></div>
     <div class="hstat"><div class="hstat-v" id="h-delta" style="color:var(--green)">—</div><div class="hstat-l">+24h</div></div>
+    <div class="sep"></div>
+    <span class="lu" id="h-lu">—</span>
     <div class="sep"></div>
     <button class="hbtn" id="refresh-btn" onclick="load()">↻ Refresh</button>
   </div>
 </header>
-
-<main><div class="grid" id="grid"></div></main>
-
-<div class="modal-overlay" id="modal-create">
+<main>
+  <div class="summary-bar">
+    <div class="sum-card"><div class="sum-label">Total Accounts</div><div class="sum-val c-fb" id="s-accounts">—</div><div class="sum-sub">across all phones</div></div>
+    <div class="sum-card"><div class="sum-label">Phones Running</div><div class="sum-val c-purple" id="s-active">—</div><div class="sum-sub" id="s-active-sub">of 8 phones</div></div>
+    <div class="sum-card"><div class="sum-label">Reels Today</div><div class="sum-val c-fb" id="s-reels">—</div><div class="sum-sub">posted this session</div></div>
+    <div class="sum-card"><div class="sum-label">Total Followers</div><div class="sum-val c-green" id="s-followers">—</div><div class="sum-sub" id="s-followers-sub">across all accounts</div></div>
+    <div class="sum-card"><div class="sum-label">Gained Today</div><div class="sum-val c-green" id="s-delta">—</div><div class="sum-sub">follower growth 24h</div></div>
+    <div class="sum-card"><div class="sum-label">Issues</div><div class="sum-val" id="s-issues">—</div><div class="sum-sub" id="s-issues-sub">verify / logged out</div></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+<div class="modal-ov" id="modal-create">
   <div class="modal">
     <div class="modal-title">➕ Create Container</div>
-    <input id="modal-name" placeholder="Name (e.g. 11)"/>
+    <input id="modal-name" placeholder="Name (e.g. 21)"/>
     <div class="modal-btns">
-      <button class="btn btn-confirm" onclick="modalConfirmCreate()">Create</button>
-      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-ok" onclick="modalConfirmCreate()">Create</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
     </div>
   </div>
 </div>
-
 <script>
-const API = 'https://farm-production-8282.up.railway.app';
-const PHONES = {
-  1:{ip:'192.168.1.9'},
-  2:{ip:'192.168.1.12'},
-  3:{ip:'192.168.1.14'},
-  4:{ip:'192.168.1.10'},
-  5:{ip:'192.168.1.11'},
-  6:{ip:'192.168.1.15'},
-  7:{ip:'192.168.1.13'},
-  8:{ip:'192.168.1.5'},
-};
-// Real container counts come from phone reporter — no hardcoding
-
-let platform = 'fb';
-const expanded = {};  // "phone-acc" -> bool
-const craneOpen={}, craneCtrs={}, craneLogs={}, craneState={}, craneSelected={};
+const API='https://farm-production-8282.up.railway.app';
+const PHONES={1:{ip:'192.168.1.9'},2:{ip:'192.168.1.12'},3:{ip:'192.168.1.14'},4:{ip:'192.168.1.10'},5:{ip:'192.168.1.11'},6:{ip:'192.168.1.15'},7:{ip:'192.168.1.13'},8:{ip:'192.168.1.5'}};
+const BIO_LINKS={1:'oopsie.bio/madgph1',2:'oopsie.bio/maddy2',3:'oopsie.bio/maddgirl3',4:'oopsie.bio/maddbab4',5:'oopsie.bio/maddiecute5',6:'oopsie.bio/madpookie6',7:'oopsie.bio/maddmadd7',8:'oopsie.bio/madd8',9:'oopsie.bio/ismaddie9',10:'oopsie.bio/maddiegirll10'};
+let platform='fb';
+const expanded={},craneOpen={},craneCtrs={},craneLogs={},craneState={},craneSelected={};
 let modalPhone=null;
 
-// ── FORMATTERS ────────────────────────────────────────────────────────────────
 function fmt(n){
-  if(n===null||n===undefined||n==='?'||n==='—'||n==='')return'—';
-  const s=String(n).trim().replace(/,/g,'');
-  const su=s.toUpperCase();
+  if(n===null||n===undefined||n===''||n==='?'||n==='—')return'—';
+  const s=String(n).trim().replace(/,/g,''),su=s.toUpperCase();
   let v;
-  // Handle already-formatted strings like "1.5K", "6K", "2.3M"
-  if(su.endsWith('K'))      v=parseFloat(su)*1000;
-  else if(su.endsWith('M')) v=parseFloat(su)*1000000;
-  else                      v=parseFloat(s);
+  if(su.endsWith('K'))v=parseFloat(su)*1000;
+  else if(su.endsWith('M'))v=parseFloat(su)*1000000;
+  else v=parseFloat(s);
   if(isNaN(v))return'—';
   if(v>=1000000)return(v/1000000).toFixed(1)+'M';
-  if(v>=1000)   return(v/1000).toFixed(1)+'K';
-  return Math.round(v).toString();
+  if(v>=10000)return Math.round(v/1000)+'K';
+  if(v>=1000)return(v/1000).toFixed(1)+'K';
+  return Math.round(v).toLocaleString();
 }
-
+function fmtFull(n){const v=parseFollowers(n);return v>0?v.toLocaleString():'—';}
 function fmtDelta(d){
   if(d===null||d===undefined)return{text:'—',cls:'zero'};
-  if(d>0)return{text:'+'+fmt(d),cls:'pos'};
-  if(d<0)return{text:fmt(d),cls:'neg'};
+  const v=Number(d);if(isNaN(v))return{text:'—',cls:'zero'};
+  if(v>0)return{text:'+'+fmt(v),cls:'pos'};
+  if(v<0)return{text:fmt(v),cls:'neg'};
   return{text:'→0',cls:'zero'};
 }
-
 function fmtDate(ts){
   if(!ts)return'—';
-  const d=new Date(ts*1000);
-  const now=new Date();
-  const diff=Math.floor((now-d)/86400000);
-  if(diff===0)return'Today';
-  if(diff===1)return'Yesterday';
+  const d=new Date(ts*1000),now=new Date(),diff=Math.floor((now-d)/86400000);
+  if(diff===0)return'Today';if(diff===1)return'Yesterday';
   if(diff<30)return diff+'d ago';
   return d.toLocaleDateString('en',{month:'short',day:'numeric'});
 }
-
-function fmtDateFull(ts){
-  if(!ts)return'—';
-  return new Date(ts*1000).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'});
-}
-
-function fmtLastUpdate(str){
-  if(!str)return'—';
-  return str.slice(11,16); // HH:MM from "2026-08-12 14:32:00"
-}
-
-// ── PLATFORM SWITCH ───────────────────────────────────────────────────────────
-function switchPlatform(p){
-  platform=p;
-  document.getElementById('tab-fb').className='tab'+(p==='fb'?' active-fb':'');
-  document.getElementById('tab-ig').className='tab'+(p==='ig'?' active-ig':'');
-  const btn=document.getElementById('refresh-btn');
-  btn.className='hbtn'+(p==='ig'?' ig-btn':'');
-  buildCards();
-  load();
-}
-
-// ── BUILD CARDS ONCE ──────────────────────────────────────────────────────────
-function buildCards(){
-  const grid=document.getElementById('grid');
-  grid.innerHTML='';
-  const p=platform;
-  const ac=p==='fb'?'fb-c':'ig-c';
-  const pfill=p==='fb'?'prog-fill-fb':'prog-fill-ig';
-  const pbadge=p==='fb'?'phone-badge fb-badge':'phone-badge ig-badge';
-  const flwCls=p==='fb'?'acc-followers':'acc-followers ig-flw';
-  const linkCls=p==='fb'?'detail-link':'detail-link ig-link';
-
-  for(const[num,cfg]of Object.entries(PHONES)){
-    const n=parseInt(num);
-    const card=document.createElement('div');
-    card.className='card'; card.id=`card-${p}-${n}`;
-
-    card.innerHTML=`
-    <div class="card-top">
-      <div class="card-top-row">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="${pbadge}">${n}</div>
-          <div class="phone-info">
-            <div class="phone-title">Phone ${n}</div>
-            <div class="phone-ip">${cfg.ip}</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <button class="crane-btn" onclick="toggleCrane(${n})">⚙ Crane</button>
-          <div class="status-pill pill-idle" id="pill-${p}-${n}">Idle</div>
-        </div>
-      </div>
-      <div class="prog-row">
-        <span class="prog-label" id="plabel-${p}-${n}">Loading...</span>
-        <span class="prog-pct" id="ppct-${p}-${n}">0%</span>
-      </div>
-      <div class="prog-bar"><div class="${pfill}" id="pfill-${p}-${n}" style="width:0%"></div></div>
-      <div class="mini-stats">
-        <div class="ms"><div class="ms-v ${ac}" id="ms-accs-${p}-${n}">—</div><div class="ms-l">Accs</div></div>
-        <div class="ms"><div class="ms-v ${ac}" id="ms-reels-${p}-${n}">—</div><div class="ms-l">Reels</div></div>
-        <div class="ms"><div class="ms-v ${ac}" id="ms-flw-${p}-${n}">—</div><div class="ms-l">Followers</div></div>
-        <div class="ms"><div class="ms-v" id="ms-delta-${p}-${n}" style="color:var(--green)">—</div><div class="ms-l">+24h</div></div>
-      </div>
-    </div>
-
-    <div class="acc-section-head">
-      <span class="acc-section-title">Containers</span>
-      <span class="acc-section-count" id="acc-count-${p}-${n}">loading...</span>
-    </div>
-    <div class="acc-list" id="acc-list-${p}-${n}">
-      <div style="padding:12px;font-size:11px;color:var(--t3);text-align:center">Loading containers...</div>
-    </div>
-
-    <!-- CRANE PANEL -->
-    <div class="crane-panel" id="crane-panel-${n}">
-      <div style="padding:10px 14px;border-top:1px solid var(--b1);display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--s2)">
-        <span style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">⚙ Crane — Phone ${n}</span>
-        <button class="btn-sm btn-blue" onclick="craneSendList(${n})" style="margin-left:auto">↺ List</button>
-        <button class="btn-sm btn-green" onclick="openCreateModal(${n})">+ New</button>
-        <span style="font-size:10px;color:#a78bfa;font-weight:700" id="crane-selcount-${n}"></span>
-      </div>
-      <div style="padding:5px 14px 8px;display:flex;gap:5px;flex-wrap:wrap;border-bottom:1px solid var(--b1)">
-        <button class="btn-sm btn-ghost" onclick="selectAll(${n})">All</button>
-        <button class="btn-sm btn-ghost" onclick="selectNone(${n})">None</button>
-        <button class="btn-sm btn-ghost" onclick="selectFresh(${n})" style="color:#a78bfa">Fresh</button>
-        <input id="keep-input-${n}" placeholder="Keep: 3,4,8,15" title="Type container numbers to KEEP, then click Select rest" style="background:var(--s1);border:1px solid var(--b2);color:var(--t1);border-radius:6px;padding:3px 8px;font-size:10px;font-family:monospace;width:105px;outline:none" onkeydown="if(event.key==='Enter')selectAllExcept(${n})">
-        <button class="btn-sm btn-ghost" style="font-size:10px;padding:3px 9px" onclick="selectAllExcept(${n})">→ Rest</button>
-        <div style="margin-left:auto;display:flex;gap:5px">
-          <button class="btn-sm btn-red" onclick="deleteSelected(${n})">Del</button>
-          <button class="btn-sm btn-purple" onclick="deleteAndCreate(${n})">🔄 Del & Create</button>
-        </div>
-      </div>
-      <div style="max-height:200px;overflow-y:auto;padding:8px 14px;display:flex;flex-direction:column;gap:4px" id="crane-ctrs-${n}">
-        <div style="font-size:11px;color:var(--t3);text-align:center;padding:12px">Click ↺ List to load</div>
-      </div>
-      <div id="crane-cmd-box-${n}" style="display:none;padding:10px 14px;border-top:1px solid var(--b1);background:var(--bg)">
-        <div style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">Run Command</div>
-        <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-          <select id="crane-script-${n}" onchange="updateCommand(${n})" style="background:var(--s1);border:1px solid var(--b2);color:var(--t2);border-radius:6px;padding:4px 8px;font-size:11px;font-family:inherit">
-            <option value="fb_reel_auto_v3.py">FB v3 (3 unique)</option>
-            <option value="fb_reel_auto_v4.py">FB v4 (1×5)</option>
-            <option value="ig_reel_auto_v3.py">IG v3 (3 unique)</option>
-            <option value="fb_account_creator.py">FB Account Creator</option>
-          </select>
-          <select id="crane-link-${n}" onchange="updateCommand(${n})" style="background:var(--s1);border:1px solid var(--b2);color:var(--t2);border-radius:6px;padding:4px 8px;font-size:11px;font-family:inherit">
-            <option value="0">No link</option>
-            <option value="1">oopsie.bio/madmad69</option>
-            <option value="2">oopsie.bio/madmad70</option>
-            <option value="3">oopsie.bio/madgirlyy</option>
-            <option value="4">oopsie.bio/madpage</option>
-            <option value="5">oopsie.bio/maddiee5</option>
-            <option value="6">oopsie.bio/maddix7</option>
-            <option value="7">oopsie.bio/maddiepfgg</option>
-            <option value="8">oopsie.bio/maddiezettt</option>
-          </select>
-        </div>
-        <div style="display:flex;gap:6px">
-          <input id="crane-cmd-${n}" readonly style="flex:1;background:var(--s2);border:1px solid var(--b2);color:#34d399;border-radius:8px;padding:7px 10px;font-size:11px;font-family:monospace;cursor:pointer" onclick="this.select()">
-          <button class="btn-sm btn-green" id="crane-copybtn-${n}" onclick="copyCmd(${n})">Copy</button>
-        </div>
-      </div>
-      <div style="padding:8px 14px 10px;border-top:1px solid var(--b1)">
-        <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">Recent commands</div>
-        <div style="display:flex;flex-direction:column;gap:2px;max-height:50px;overflow-y:auto" id="crane-log-${n}">
-          <div class="crane-log-item">No commands yet</div>
-        </div>
-      </div>
-    </div>`;
-    grid.appendChild(card);
-  }
-}
-
-// ── UPDATE IN-PLACE ───────────────────────────────────────────────────────────
-const _ctrCache = {}; // phone -> container list string (to detect changes)
-
-function buildAccRows(p, n, ctrs, ac, linkCls, flwCls){
-  return ctrs.map(c=>{
-    const a=c.name;
-    return`
-    <div class="acc-row" id="ar-${p}-${n}-${a}" onclick="toggleDetail(${n},'${a}')">
-      <span class="acc-num">${a}</span>
-      <span class="acc-name" id="an-${p}-${n}-${a}">Container ${a}</span>
-      <span id="badge-${p}-${n}-${a}"></span>
-      <span class="${flwCls}" id="flw-${p}-${n}-${a}">—</span>
-      <span class="acc-delta zero" id="delta-${p}-${n}-${a}">—</span>
-      <span class="acc-arrow">▾</span>
-    </div>
-    <div class="acc-detail" id="det-${p}-${n}-${a}">
-      <div class="detail-grid">
-        <div class="dg-item"><div class="dg-label">Followers</div><div class="dg-value big ${ac}" id="dflw-${p}-${n}-${a}">—</div><div class="dg-sub" id="dflw-sub-${p}-${n}-${a}">—</div></div>
-        <div class="dg-item"><div class="dg-label">+24h Change</div><div class="dg-value" id="ddelta-${p}-${n}-${a}">—</div><div class="dg-sub" id="ddelta-sub-${p}-${n}-${a}"></div></div>
-        <div class="dg-item"><div class="dg-label">Views</div><div class="dg-value muted" id="dviews-${p}-${n}-${a}">—</div><div class="dg-sub" id="dviews-sub-${p}-${n}-${a}">Total reel views</div></div>
-        <div class="dg-item"><div class="dg-label">Views +24h</div><div class="dg-value" id="dviews-delta-${p}-${n}-${a}">—</div><div class="dg-sub">Views gained today</div></div>
-        <div class="dg-item"><div class="dg-label">Reels Posted</div><div class="dg-value" id="dreels-${p}-${n}-${a}">—</div><div class="dg-sub" id="dreels-sub-${p}-${n}-${a}"></div></div>
-        <div class="dg-item"><div class="dg-label">Created</div><div class="dg-value" id="dcreated-${p}-${n}-${a}">—</div><div class="dg-sub" id="dcreated-sub-${p}-${n}-${a}"></div></div>
-        <div class="dg-item"><div class="dg-label">Last Active</div><div class="dg-value" id="dlast-${p}-${n}-${a}">—</div><div class="dg-sub">Last data received</div></div>
-      </div>
-      <div style="margin-top:8px;font-size:11px;color:var(--t3)">
-        Bio: <a class="${linkCls}" id="dlink-${p}-${n}-${a}" href="#" target="_blank">—</a>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function load(){
-  const p=platform;
-  const ac=p==='fb'?'fb-c':'ig-c';
-  const flwCls=p==='fb'?'acc-followers':'acc-followers ig-flw';
-  const linkCls=p==='fb'?'detail-link':'detail-link ig-link';
-  let totalReels=0, active=0, totalFlw=0, totalDelta=0, deltaCnt=0;
-
-  // Fetch ALL phones in parallel — much faster than sequential
-  const phoneNums = Object.keys(PHONES).map(Number);
-  const results = await Promise.all(phoneNums.map(async n => {
-    let s=null, ctrs=[];
-    try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok)s=await r.json();}catch(e){}
-    try{const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok){const d=await r.json();ctrs=(d.containers||[]).sort((a,b)=>a.num-b.num);}}catch(e){}
-    return {n, s, ctrs};
-  }));
-
-  for(const {n, s, ctrs} of results){
-    const cfg=PHONES[n];
-    const run=s?.status==='running', err=s?.status==='error';
-    if(run)active++;
-    if(s)totalReels+=s.reels_posted||0;
-    const ctrCount=ctrs.length;
-    const pct=s?Math.min(100,Math.round(s.container/(s.total_containers||ctrCount||1)*100)):0;
-    const accs=s?.accounts||{};
-
-    // Rebuild account rows if container list changed
-    const ctrKey=ctrs.map(c=>c.name).join(',');
-    const listEl=document.getElementById(`acc-list-${p}-${n}`);
-    const countEl=document.getElementById(`acc-count-${p}-${n}`);
-    const accsEl=document.getElementById(`ms-accs-${p}-${n}`);
-    if(listEl && ctrKey && _ctrCache[`${p}-${n}`]!==ctrKey){
-      listEl.innerHTML=buildAccRows(p,n,ctrs,ac,linkCls,flwCls);
-      _ctrCache[`${p}-${n}`]=ctrKey;
-    }
-    if(countEl) countEl.textContent=ctrCount?`${ctrCount} containers`:'loading...';
-    if(accsEl)  accsEl.textContent=ctrCount||'—';
-
-    // Card class
-    const card=document.getElementById(`card-${p}-${n}`);
-    if(card) card.className=`card${run?p==='fb'?' running-fb':' running-ig':err?' error':''}`;
-
-    // Pill
-    const pill=document.getElementById(`pill-${p}-${n}`);
-    if(pill){
-      pill.className=`status-pill ${run?p==='fb'?'pill-run-fb':'pill-run-ig':err?'pill-err':'pill-idle'}`;
-      pill.innerHTML=run?`<span class="dot ${p==='fb'?'dot-fb':'dot-ig'}"></span>${p==='fb'?'FB ':'IG '}Running`:err?'Error':'Idle';
-    }
-
-    // Progress
-    const e=id=>document.getElementById(id);
-    if(e(`plabel-${p}-${n}`)) e(`plabel-${p}-${n}`).textContent=`Container ${s?.container||0} / ${s?.total_containers||ctrCount||'—'}`;
-    if(e(`ppct-${p}-${n}`))   e(`ppct-${p}-${n}`).textContent=pct+'%';
-    if(e(`pfill-${p}-${n}`))  e(`pfill-${p}-${n}`).style.width=pct+'%';
-    if(e(`ms-reels-${p}-${n}`)) e(`ms-reels-${p}-${n}`).textContent=s?.reels_posted??'—';
-
-    // Per-phone follower stats
-    let phoneFlw=0, phoneDelta=0, phoneDeltaCnt=0;
-    for(const c of ctrs){
-      const a=c.name;
-      const acc=accs[a]||accs[parseInt(a)]||{};
-      const flwNum=parseFollowers(acc.followers);
-      phoneFlw+=flwNum; totalFlw+=flwNum;
-      const d=acc.delta_24h;
-      if(d!==null&&d!==undefined){phoneDelta+=d;phoneDeltaCnt++;totalDelta+=d;deltaCnt++;}
-
-      // Row update
-      const row=e(`ar-${p}-${n}-${a}`);
-      if(row){
-        const isCur=String(s?.current_container)===String(a);
-        row.className=`acc-row${isCur?p==='fb'?' active-acc':' active-acc-ig':''}${expanded[`${p}-${n}-${a}`]?' expanded':''}`;
-      }
-      if(e(`an-${p}-${n}-${a}`)&&acc.name&&acc.name!=='?') e(`an-${p}-${n}-${a}`).textContent=acc.name;
-      if(e(`flw-${p}-${n}-${a}`)) e(`flw-${p}-${n}-${a}`).textContent=fmt(acc.followers);
-
-      const delta=fmtDelta(acc.delta_24h);
-      if(e(`delta-${p}-${n}-${a}`)){
-        const el=e(`delta-${p}-${n}-${a}`);
-        el.textContent=delta.text; el.className=`acc-delta ${delta.cls}`;
-      }
-
-      const st=acc.status||'ok';
-      if(e(`badge-${p}-${n}-${a}`)){
-        const cls=st==='verify'?'acc-badge badge-verify':st==='logged_out'?'acc-badge badge-logout':st==='ban'?'acc-badge badge-ban':'';
-        const txt=st==='verify'?'VERIFY':st==='logged_out'?'OUT':st==='ban'?'BAN':'';
-        e(`badge-${p}-${n}-${a}`).innerHTML=cls?`<span class="${cls}">${txt}</span>`:'';
-      }
-
-      if(expanded[`${p}-${n}-${a}`]) updateDetail(p,n,a,acc,s);
-    }
-
-    if(e(`ms-flw-${p}-${n}`)) e(`ms-flw-${p}-${n}`).textContent=fmt(phoneFlw)||'—';
-    if(e(`ms-delta-${p}-${n}`)){
-      const d=fmtDelta(phoneDeltaCnt?phoneDelta:null);
-      e(`ms-delta-${p}-${n}`).textContent=d.text;
-      e(`ms-delta-${p}-${n}`).style.color=d.cls==='pos'?'var(--green)':d.cls==='neg'?'var(--red)':'var(--t3)';
-    }
-  }
-
-  document.getElementById('h-active').textContent=active||'—';
-  document.getElementById('h-reels').textContent=fmt(totalReels)||'—';
-  document.getElementById('h-followers').textContent=fmt(totalFlw)||'—';
-  const hd=fmtDelta(deltaCnt?totalDelta:null);
-  const hde=document.getElementById('h-delta');
-  hde.textContent=hd.text;
-  hde.style.color=hd.cls==='pos'?'var(--green)':hd.cls==='neg'?'var(--red)':'var(--t3)';
-}
-
-
+function fmtDateFull(ts){if(!ts)return'';return new Date(ts*1000).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'});}
+function fmtTime(str){if(!str)return'—';return str.slice(11,16);}
 function parseFollowers(raw){
   if(!raw||raw==='?'||raw==='—')return 0;
   const su=String(raw).trim().replace(/,/g,'').toUpperCase();
@@ -549,62 +244,274 @@ function parseFollowers(raw){
   return parseFloat(su)||0;
 }
 
+function switchPlatform(p){
+  platform=p;
+  document.getElementById('tab-fb').className='tab'+(p==='fb'?' active-fb':'');
+  document.getElementById('tab-ig').className='tab'+(p==='ig'?' active-ig':'');
+  document.getElementById('refresh-btn').className='hbtn'+(p==='ig'?' ig-btn':'');
+  document.getElementById('h-followers').style.color=p==='fb'?'var(--fb2)':'var(--ig2)';
+  buildCards();load();
+}
+
+const _ctrCache={};
+function buildCards(){
+  const g=document.getElementById('grid');g.innerHTML='';
+  const p=platform,ac=p==='fb'?'c-fb':'c-ig',fill=p==='fb'?'fill-fb':'fill-ig';
+  const badge=p==='fb'?'fb-badge':'ig-badge',flwCls=p==='fb'?'acc-flw':'acc-flw ig',linkCls=p==='fb'?'detail-link':'detail-link ig';
+  for(const[num,cfg]of Object.entries(PHONES)){
+    const n=parseInt(num),div=document.createElement('div');
+    div.className='card';div.id=`card-${p}-${n}`;
+    div.innerHTML=`
+    <div class="card-head">
+      <div class="ch-row">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div class="phone-badge ${badge}">${n}</div>
+          <div class="phone-info"><div class="phone-title">Phone ${n}</div><div class="phone-ip">${cfg.ip}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="crane-btn" onclick="toggleCrane(${n})">⚙ Crane</button>
+          <div class="pill pill-idle" id="pill-${p}-${n}">Idle</div>
+        </div>
+      </div>
+      <div class="prog-row"><span class="prog-label" id="plabel-${p}-${n}">Waiting...</span><span class="prog-pct" id="ppct-${p}-${n}"></span></div>
+      <div class="prog-bar"><div class="${fill}" id="pfill-${p}-${n}" style="width:0%"></div></div>
+      <div class="mini-stats">
+        <div class="ms"><div class="ms-v ${ac}" id="ms-accs-${p}-${n}">—</div><div class="ms-l">Accs</div></div>
+        <div class="ms"><div class="ms-v ${ac}" id="ms-reels-${p}-${n}">—</div><div class="ms-l">Reels</div></div>
+        <div class="ms"><div class="ms-v ${ac}" id="ms-flw-${p}-${n}">—</div><div class="ms-l">Followers</div></div>
+        <div class="ms"><div class="ms-v" id="ms-delta-${p}-${n}" style="color:var(--green)">—</div><div class="ms-l">+24h</div></div>
+      </div>
+    </div>
+    <div class="acc-head"><span class="acc-head-title">Containers</span><span class="acc-head-count" id="acc-count-${p}-${n}">loading...</span></div>
+    <div class="acc-list" id="acc-list-${p}-${n}"><div class="empty">Loading...</div></div>
+    <div class="crane-panel" id="crane-panel-${n}">
+      <div style="padding:8px 12px;border-top:1px solid var(--b1);display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--s2)">
+        <span style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">⚙ Phone ${n}</span>
+        <button class="btn-sm btn-blue" onclick="craneSendList(${n})" style="margin-left:auto">↺ List</button>
+        <button class="btn-sm btn-green" onclick="openCreateModal(${n})">+ New</button>
+        <span style="font-size:9px;color:#a78bfa;font-weight:700" id="crane-selcount-${n}"></span>
+      </div>
+      <div style="padding:4px 12px 7px;display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--b1)">
+        <button class="btn-sm btn-ghost" onclick="selectAll(${n})">All</button>
+        <button class="btn-sm btn-ghost" onclick="selectNone(${n})">None</button>
+        <button class="btn-sm btn-ghost" onclick="selectFresh(${n})" style="color:#a78bfa">Fresh</button>
+        <input id="keep-input-${n}" placeholder="Keep: 3,4,8" style="background:var(--s1);border:1px solid var(--b2);color:var(--t1);border-radius:5px;padding:2px 7px;font-size:9px;font-family:monospace;width:100px;outline:none" onkeydown="if(event.key==='Enter')selectAllExcept(${n})">
+        <button class="btn-sm btn-ghost" style="font-size:9px;padding:3px 8px" onclick="selectAllExcept(${n})">→ Rest</button>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="btn-sm btn-red" onclick="deleteSelected(${n})">Del</button>
+          <button class="btn-sm btn-purple" onclick="deleteAndCreate(${n})">🔄 Del & New</button>
+        </div>
+      </div>
+      <div style="max-height:180px;overflow-y:auto;padding:7px 12px;display:flex;flex-direction:column;gap:3px" id="crane-ctrs-${n}"><div class="empty">Click ↺ List to load</div></div>
+      <div id="crane-cmd-box-${n}" style="display:none;padding:8px 12px;border-top:1px solid var(--b1);background:var(--bg)">
+        <div style="font-size:8px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px">Run Command</div>
+        <div style="display:flex;gap:5px;margin-bottom:5px;flex-wrap:wrap">
+          <select id="crane-script-${n}" onchange="updateCommand(${n})" style="background:var(--s1);border:1px solid var(--b2);color:var(--t2);border-radius:5px;padding:3px 7px;font-size:10px;font-family:inherit">
+            <option value="fb_reel_auto_v3.py">FB v3 (3 unique)</option>
+            <option value="fb_reel_auto_v4.py">FB v4 (1×5)</option>
+            <option value="fb_reel_auto_v5.py">FB v5 (2 unique)</option>
+            <option value="fb_account_creator.py">FB Account Creator</option>
+            <option value="ig_account_creator.py">IG Account Creator</option>
+          </select>
+          <select id="crane-link-${n}" onchange="updateCommand(${n})" style="background:var(--s1);border:1px solid var(--b2);color:var(--t2);border-radius:5px;padding:3px 7px;font-size:10px;font-family:inherit">
+            <option value="0">No link</option>
+            ${Object.entries(BIO_LINKS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;gap:5px">
+          <input id="crane-cmd-${n}" readonly style="flex:1;background:var(--s2);border:1px solid var(--b2);color:#34d399;border-radius:7px;padding:6px 9px;font-size:10px;font-family:monospace;cursor:pointer" onclick="this.select()">
+          <button class="btn-sm btn-green" id="crane-copybtn-${n}" onclick="copyCmd(${n})">Copy</button>
+        </div>
+      </div>
+      <div style="padding:6px 12px 8px;border-top:1px solid var(--b1)">
+        <div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Recent</div>
+        <div style="display:flex;flex-direction:column;gap:1px;max-height:40px;overflow-y:auto" id="crane-log-${n}"><div class="crane-log-item">No commands yet</div></div>
+      </div>
+    </div>`;
+    g.appendChild(div);
+  }
+}
+
+function buildAccRows(p,n,ctrs,ac,linkCls,flwCls){
+  if(!ctrs.length)return`<div class="empty">No containers</div>`;
+  return ctrs.map(c=>{
+    const a=c.name;
+    return`
+    <div class="acc-row" id="ar-${p}-${n}-${a}" onclick="toggleDetail(${n},'${a}')">
+      <span class="acc-num">${a}</span>
+      <span class="acc-name" id="an-${p}-${n}-${a}">Container ${a}</span>
+      <span class="acc-badge" id="badge-${p}-${n}-${a}"></span>
+      <span class="${flwCls}" id="flw-${p}-${n}-${a}">—</span>
+      <span class="acc-delta zero" id="delta-${p}-${n}-${a}">—</span>
+      <span class="acc-arr">▾</span>
+    </div>
+    <div class="acc-detail" id="det-${p}-${n}-${a}">
+      <div class="dg">
+        <div class="dg-item"><div class="dg-label">Followers</div><div class="dg-val big ${ac}" id="dflw-${p}-${n}-${a}">—</div><div class="dg-sub" id="dflw-sub-${p}-${n}-${a}"></div></div>
+        <div class="dg-item"><div class="dg-label">+24h Change</div><div class="dg-val" id="ddelta-${p}-${n}-${a}">—</div><div class="dg-sub" id="ddelta-sub-${p}-${n}-${a}"></div></div>
+        <div class="dg-item"><div class="dg-label">Views</div><div class="dg-val muted" id="dviews-${p}-${n}-${a}">—</div><div class="dg-sub">Total reel views</div></div>
+        <div class="dg-item"><div class="dg-label">Views +24h</div><div class="dg-val" id="dviews-delta-${p}-${n}-${a}">—</div><div class="dg-sub">Views gained today</div></div>
+        <div class="dg-item"><div class="dg-label">Created</div><div class="dg-val" id="dcreated-${p}-${n}-${a}">—</div><div class="dg-sub" id="dcreated-sub-${p}-${n}-${a}"></div></div>
+        <div class="dg-item"><div class="dg-label">Last Active</div><div class="dg-val" id="dlast-${p}-${n}-${a}">—</div><div class="dg-sub">Last data received</div></div>
+        <div class="dg-item" style="grid-column:1/-1"><div class="dg-label">Follower History</div><div class="flw-hist" id="dflw-hist-${p}-${n}-${a}"><div style="font-size:10px;color:var(--t3);padding:4px 0">Loading...</div></div></div>
+      </div>
+      <div style="margin-top:7px;font-size:10px;color:var(--t3)">Bio: <a class="${linkCls}" id="dlink-${p}-${n}-${a}" href="#" target="_blank">—</a></div>
+    </div>`;
+  }).join('');
+}
+
+async function load(){
+  const p=platform,ac=p==='fb'?'c-fb':'c-ig',flwCls=p==='fb'?'acc-flw':'acc-flw ig',linkCls=p==='fb'?'detail-link':'detail-link ig';
+  let totalAccs=0,totalReels=0,active=0,totalFlw=0,totalDelta=0,deltaCnt=0,totalIssues=0;
+
+  const results=await Promise.all(Object.keys(PHONES).map(async num=>{
+    const n=parseInt(num);let s=null,ctrs=[];
+    try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok)s=await r.json();}catch(e){}
+    try{const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok){const d=await r.json();ctrs=(d.containers||[]).sort((a,b)=>a.num-b.num);}}catch(e){}
+    return{n,s,ctrs};
+  }));
+
+  for(const{n,s,ctrs}of results){
+    const run=s?.status==='running',err=s?.status==='error';
+    if(run)active++;
+    const reels=s?.reels_posted||0;totalReels+=reels;
+    const ctrCount=ctrs.length;totalAccs+=ctrCount;
+    const pct=s&&s.container&&s.total_containers?Math.min(100,Math.round(s.container/s.total_containers*100)):0;
+    const accs=s?.accounts||{};
+    const e=id=>document.getElementById(id);
+
+    const card=e(`card-${p}-${n}`);
+    if(card)card.className=`card${run?p==='fb'?' running-fb':' running-ig':err?' has-error':''}`;
+
+    const pill=e(`pill-${p}-${n}`);
+    if(pill){pill.className=`pill ${run?p==='fb'?'pill-run-fb':'pill-run-ig':err?'pill-err':'pill-idle'}`;pill.innerHTML=run?`<span class="dot ${p==='fb'?'dot-fb':'dot-ig'}"></span>Running`:'Idle';}
+
+    if(e(`plabel-${p}-${n}`))e(`plabel-${p}-${n}`).textContent=run?`Container ${s?.container||0} / ${s?.total_containers||ctrCount||'—'}`:`${ctrCount} containers`;
+    if(e(`ppct-${p}-${n}`))e(`ppct-${p}-${n}`).textContent=run?pct+'%':'';
+    if(e(`pfill-${p}-${n}`))e(`pfill-${p}-${n}`).style.width=pct+'%';
+    if(e(`ms-reels-${p}-${n}`))e(`ms-reels-${p}-${n}`).textContent=reels||'—';
+
+    const ctrKey=ctrs.map(c=>c.name).join(',');
+    const listEl=e(`acc-list-${p}-${n}`);
+    if(listEl&&ctrKey!==_ctrCache[`${p}-${n}`]){listEl.innerHTML=buildAccRows(p,n,ctrs,ac,linkCls,flwCls);_ctrCache[`${p}-${n}`]=ctrKey;}
+    if(e(`acc-count-${p}-${n}`))e(`acc-count-${p}-${n}`).textContent=ctrCount?`${ctrCount} total`:'0';
+    if(e(`ms-accs-${p}-${n}`))e(`ms-accs-${p}-${n}`).textContent=ctrCount||'—';
+
+    let phoneFlw=0,phoneDelta=0,phoneDeltaCnt=0;
+    for(const c of ctrs){
+      const a=c.name,acc=accs[a]||accs[parseInt(a)]||{};
+      const flwNum=parseFollowers(acc.followers);
+      phoneFlw+=flwNum;totalFlw+=flwNum;
+      const d=acc.delta_24h;
+      if(d!==null&&d!==undefined&&!isNaN(Number(d))){const dv=Number(d);phoneDelta+=dv;phoneDeltaCnt++;totalDelta+=dv;deltaCnt++;}
+      const st=acc.status||'ok';
+      if(st==='verify'||st==='logged_out'||st==='ban')totalIssues++;
+
+      const row=e(`ar-${p}-${n}-${a}`);
+      if(row){const isCur=String(s?.current_container)===String(a);row.className=`acc-row${isCur?p==='fb'?' acc-active':' acc-active-ig':''}${expanded[`${p}-${n}-${a}`]?' expanded':''}`;}
+      if(e(`an-${p}-${n}-${a}`)&&acc.name&&acc.name!=='?')e(`an-${p}-${n}-${a}`).textContent=acc.name;
+      if(e(`flw-${p}-${n}-${a}`))e(`flw-${p}-${n}-${a}`).textContent=flwNum>0?fmt(flwNum):'—';
+      const delta=fmtDelta(d);const del=e(`delta-${p}-${n}-${a}`);
+      if(del){del.textContent=delta.text;del.className=`acc-delta ${delta.cls}`;}
+      const badge=e(`badge-${p}-${n}-${a}`);
+      if(badge){const cls=st==='verify'?'b-verify':st==='logged_out'?'b-logout':st==='ban'?'b-ban':'';const txt=st==='verify'?'VERIFY':st==='logged_out'?'OUT':st==='ban'?'BAN':'';badge.innerHTML=cls?`<span class="${cls}">${txt}</span>`:'';}
+      if(expanded[`${p}-${n}-${a}`])updateDetail(p,n,a,acc,s);
+    }
+
+    if(e(`ms-flw-${p}-${n}`))e(`ms-flw-${p}-${n}`).textContent=phoneFlw>0?fmt(phoneFlw):'—';
+    const pDelta=fmtDelta(phoneDeltaCnt?phoneDelta:null);const pdEl=e(`ms-delta-${p}-${n}`);
+    if(pdEl){pdEl.textContent=pDelta.text;pdEl.style.color=pDelta.cls==='pos'?'var(--green)':pDelta.cls==='neg'?'var(--red)':'var(--t3)';}
+  }
+
+  document.getElementById('h-accounts').textContent=totalAccs||'—';
+  document.getElementById('h-active').textContent=active||'—';
+  document.getElementById('h-reels').textContent=fmt(totalReels)||'—';
+  document.getElementById('h-followers').textContent=totalFlw>0?fmt(totalFlw):'—';
+  const hd=fmtDelta(deltaCnt?totalDelta:null);const hde=document.getElementById('h-delta');
+  hde.textContent=hd.text;hde.style.color=hd.cls==='pos'?'var(--green)':hd.cls==='neg'?'var(--red)':'var(--t3)';
+  document.getElementById('h-lu').textContent='↻ '+new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit'});
+
+  document.getElementById('s-accounts').textContent=totalAccs||'—';
+  document.getElementById('s-active').textContent=active||'—';
+  document.getElementById('s-active-sub').textContent='of '+Object.keys(PHONES).length+' phones';
+  document.getElementById('s-reels').textContent=fmt(totalReels)||'—';
+  document.getElementById('s-followers').textContent=totalFlw>0?fmtFull(totalFlw):'—';
+  document.getElementById('s-followers-sub').textContent=totalFlw>0?'= '+fmt(totalFlw)+' followers':'across all accounts';
+  const sd=fmtDelta(deltaCnt?totalDelta:null);const sde=document.getElementById('s-delta');
+  sde.textContent=sd.text;sde.style.color=sd.cls==='pos'?'var(--green)':sd.cls==='neg'?'var(--red)':'var(--t3)';
+  const si=document.getElementById('s-issues');if(si){si.textContent=totalIssues||'0';si.style.color=totalIssues?'var(--yellow)':'var(--green)';}
+  if(document.getElementById('s-issues-sub'))document.getElementById('s-issues-sub').textContent=totalIssues?totalIssues+' accounts need attention':'All accounts OK';
+}
+
 function updateDetail(p,n,i,acc,s){
   const e=id=>document.getElementById(id);
-  if(e(`dflw-${p}-${n}-${i}`)) e(`dflw-${p}-${n}-${i}`).textContent=fmt(acc.followers)||'—';
-  if(e(`dflw-sub-${p}-${n}-${i}`)) e(`dflw-sub-${p}-${n}-${i}`).textContent=acc.followers&&acc.followers!='?'?acc.followers+' followers':'';
-  const d=fmtDelta(acc.delta_24h);
-  if(e(`ddelta-${p}-${n}-${i}`)){ const el=e(`ddelta-${p}-${n}-${i}`);el.textContent=d.text;el.className=`dg-value ${d.cls==='pos'?'green':d.cls==='neg'?'red':''}`; }
-  if(e(`ddelta-sub-${p}-${n}-${i}`)) e(`ddelta-sub-${p}-${n}-${i}`).textContent=d.cls==='pos'?'Growing ↑':d.cls==='neg'?'Declining ↓':'No change';
-  if(e(`dreels-${p}-${n}-${i}`)) e(`dreels-${p}-${n}-${i}`).textContent=acc.reels_posted??'—';
-  if(e(`dreels-sub-${p}-${n}-${i}`)) e(`dreels-sub-${p}-${n}-${i}`).textContent=s?.current_container===i?'Currently active':'';
-  if(e(`dviews-${p}-${n}-${i}`)) e(`dviews-${p}-${n}-${i}`).textContent=acc.views?fmt(acc.views):'—';
-  if(e(`dviews-delta-${p}-${n}-${i}`)){const vd=fmtDelta(acc.views_delta_24h);const el=e(`dviews-delta-${p}-${n}-${i}`);el.textContent=vd.text;el.className=`dg-value ${vd.cls==='pos'?'green':vd.cls==='neg'?'red':''}`;}
-  if(e(`dviews-sub-${p}-${n}-${i}`)) e(`dviews-sub-${p}-${n}-${i}`).textContent=acc.views?fmt(acc.views)+' total views':'—';
-  if(e(`dcreated-${p}-${n}-${i}`)){e(`dcreated-${p}-${n}-${i}`).textContent=fmtDate(acc.created_at);}
-  if(e(`dcreated-sub-${p}-${n}-${i}`)){e(`dcreated-sub-${p}-${n}-${i}`).textContent=fmtDateFull(acc.created_at);}
-  if(e(`dlast-${p}-${n}-${i}`)){e(`dlast-${p}-${n}-${i}`).textContent=s?.last_update?fmtLastUpdate(s.last_update):'—';}
-  if(e(`dlink-${p}-${n}-${i}`)&&acc.bio_link){const a=e(`dlink-${p}-${n}-${i}`);a.textContent=acc.bio_link;a.href='https://'+acc.bio_link;}
+  const flwNum=parseFollowers(acc.followers);
+  if(e(`dflw-${p}-${n}-${i}`))e(`dflw-${p}-${n}-${i}`).textContent=flwNum>0?fmt(flwNum):'—';
+  if(e(`dflw-sub-${p}-${n}-${i}`))e(`dflw-sub-${p}-${n}-${i}`).textContent=flwNum>0?fmtFull(flwNum)+' followers':'No data yet';
+  const d=fmtDelta(acc.delta_24h);const del=e(`ddelta-${p}-${n}-${i}`);
+  if(del){del.textContent=d.text;del.className=`dg-val ${d.cls==='pos'?'c-green':d.cls==='neg'?'c-red':''}`;}
+  if(e(`ddelta-sub-${p}-${n}-${i}`))e(`ddelta-sub-${p}-${n}-${i}`).textContent=d.cls==='pos'?'Growing ↑':d.cls==='neg'?'Declining ↓':'No change';
+  if(e(`dviews-${p}-${n}-${i}`))e(`dviews-${p}-${n}-${i}`).textContent=acc.views?fmt(acc.views):'—';
+  const vd=fmtDelta(acc.views_delta_24h);const vde=e(`dviews-delta-${p}-${n}-${i}`);
+  if(vde){vde.textContent=vd.text;vde.className=`dg-val ${vd.cls==='pos'?'c-green':vd.cls==='neg'?'c-red':''}`;}
+  if(e(`dcreated-${p}-${n}-${i}`))e(`dcreated-${p}-${n}-${i}`).textContent=fmtDate(acc.created_at);
+  if(e(`dcreated-sub-${p}-${n}-${i}`))e(`dcreated-sub-${p}-${n}-${i}`).textContent=fmtDateFull(acc.created_at);
+  if(e(`dlast-${p}-${n}-${i}`))e(`dlast-${p}-${n}-${i}`).textContent=s?.last_update?fmtTime(s.last_update):'—';
+  const linkEl=e(`dlink-${p}-${n}-${i}`);
+  if(linkEl){if(acc.bio_link){linkEl.textContent=acc.bio_link;linkEl.href='https://'+acc.bio_link;}else if(BIO_LINKS[n]){linkEl.textContent=BIO_LINKS[n];linkEl.href='https://'+BIO_LINKS[n];}}
+}
+
+async function loadFollowerHistory(p,n,i){
+  const el=document.getElementById(`dflw-hist-${p}-${n}-${i}`);if(!el)return;
+  try{
+    const r=await fetch(`${API}/followers_history/${p}/${n}/${i}`,{signal:AbortSignal.timeout(5000)});
+    if(!r.ok){el.innerHTML='<div style="font-size:10px;color:var(--t3);padding:4px 0">No history yet</div>';return;}
+    const d=await r.json(),hist=d.history||[];
+    if(!hist.length){el.innerHTML='<div style="font-size:10px;color:var(--t3);padding:4px 0">No history yet — runs when script posts</div>';return;}
+    const rows=[...hist].reverse().slice(0,14);
+    let html='';
+    for(let k=0;k<rows.length;k++){
+      const row=rows[k],prev=rows[k+1],flw=parseInt(row.followers)||0;
+      const chg=prev?(flw-(parseInt(prev.followers)||0)):null;
+      const chgTxt=chg===null?'':chg>0?'+'+chg.toLocaleString():chg<0?chg.toLocaleString():'=';
+      const chgCls=chg===null?'zero':chg>0?'pos':chg<0?'neg':'zero';
+      const dt=new Date(row.date+'T12:00:00'),dateStr=dt.toLocaleDateString('en',{month:'short',day:'numeric'});
+      html+=`<div class="fhr"><span class="fhr-date">${dateStr}</span><span class="fhr-val">${flw.toLocaleString()}</span><span class="fhr-chg ${chgCls}">${chgTxt}</span></div>`;
+    }
+    el.innerHTML=html;
+  }catch(e){el.innerHTML='<div style="font-size:10px;color:var(--t3)">Could not load</div>';}
 }
 
 function toggleDetail(n,i){
-  const key=`${platform}-${n}-${i}`;
+  const p=platform,key=`${p}-${n}-${i}`;
   expanded[key]=!expanded[key];
-  const row=document.getElementById(`ar-${platform}-${n}-${i}`);
-  const det=document.getElementById(`det-${platform}-${n}-${i}`);
-  if(expanded[key]){row?.classList.add('expanded');det?.classList.add('open');}
+  const row=document.getElementById(`ar-${p}-${n}-${i}`),det=document.getElementById(`det-${p}-${n}-${i}`);
+  if(expanded[key]){row?.classList.add('expanded');det?.classList.add('open');loadFollowerHistory(p,n,i);}
   else{row?.classList.remove('expanded');det?.classList.remove('open');}
 }
 
-// ── CRANE ─────────────────────────────────────────────────────────────────────
-function ctrNum(name){const n=parseInt(name);if(!isNaN(n))return n;const m=name.match(/:(\d+)$/);return m?parseInt(m[1]):null;}
+function ctrNum(name){const v=parseInt(name);if(!isNaN(v))return v;const m=name.match(/:(\d+)$/);return m?parseInt(m[1]):null;}
 
 async function craneCmd(phone,action,name='',num=''){
-  const body={phone:parseInt(phone),action,name,container_num:num,platform:platform};
+  const body={phone:parseInt(phone),action,name,container_num:num,platform};
   const r=await fetch(API+'/crane/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d=await r.json();
   if(!craneLogs[phone])craneLogs[phone]=[];
-  craneLogs[phone].unshift({text:action+(num?' #'+num:'')+(name&&name.length<30?' '+name:''),id:d.id,status:'pending',t:new Date().toLocaleTimeString('en',{hour12:false})});
+  craneLogs[phone].unshift({text:action+(num?' #'+num:'')+(name&&name.length<25?' '+name:''),id:d.id,status:'pending',t:new Date().toLocaleTimeString('en',{hour12:false})});
   if(craneLogs[phone].length>8)craneLogs[phone].pop();
-  renderCraneLog(phone);
-  pollCmd(phone,d.id);
-  return d.id;
+  renderCraneLog(phone);pollCmd(phone,d.id);return d.id;
 }
 
 async function pollCmd(phone,id){
   for(let i=0;i<60;i++){
     await new Promise(r=>setTimeout(r,2000));
     try{
-      const r=await fetch(API+'/crane/queue');
-      const d=await r.json();
-      const cmd=(d.commands||[]).find(c=>c.id===id);
-      if(!cmd)continue;
+      const r=await fetch(API+'/crane/queue'),d=await r.json();
+      const cmd=(d.commands||[]).find(c=>c.id===id);if(!cmd)continue;
       if(cmd.status==='done'||cmd.status==='error'){
         const en=craneLogs[phone]?.find(l=>l.id===id);
-        if(en){en.status=cmd.status;en.result=(cmd.result||'').slice(0,40);}
-        renderCraneLog(phone);
-        if(cmd.status==='done')refreshContainers(phone);
-        return;
+        if(en){en.status=cmd.status;en.result=(cmd.result||'').slice(0,100);}
+        renderCraneLog(phone);if(cmd.status==='done')refreshContainers(phone);return;
       }
     }catch(e){}
   }
@@ -613,7 +520,7 @@ async function pollCmd(phone,id){
 async function refreshContainers(phone){
   try{
     const[r1,r2]=await Promise.all([fetch(API+'/crane/containers/'+platform+'/'+phone),fetch(API+'/crane/state/'+platform+'/'+phone)]);
-    const d1=await r1.json();const d2=await r2.json();
+    const d1=await r1.json(),d2=await r2.json();
     craneCtrs[phone]=d1.containers||[];craneState[phone]=d2.state||{};
     if(!craneSelected[phone])craneSelected[phone]=new Set();
     renderCraneContainers(phone);updateCommand(phone);
@@ -621,31 +528,27 @@ async function refreshContainers(phone){
 }
 
 function renderCraneContainers(phone){
-  const el=document.getElementById('crane-ctrs-'+phone);
-  if(!el)return;
-  const ctrs=craneCtrs[phone]||[];
-  const state=craneState[phone]||{};
-  const sel=craneSelected[phone]||new Set();
-  if(!ctrs.length){el.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:10px">No containers found</div>';return;}
+  const el=document.getElementById('crane-ctrs-'+phone);if(!el)return;
+  const ctrs=craneCtrs[phone]||[],state=craneState[phone]||{},sel=craneSelected[phone]||new Set();
+  if(!ctrs.length){el.innerHTML='<div class="empty">No containers found</div>';return;}
   el.innerHTML=ctrs.map(c=>{
     const fresh=state[c.name]?.status==='fresh';
     return`<div class="ctr-row${c.active?' ctr-active':''}${fresh?' ctr-fresh':''}">
       <input type="checkbox" class="ctr-cb" ${sel.has(c.name)?'checked':''} onchange="toggleSelect(${phone},'${c.name}',this.checked)">
       <span class="ctr-name">${c.name}</span>
-      ${c.active?'<span class="ctr-badge ctr-badge-active">ACTIVE</span>':''}
-      ${fresh?'<span class="ctr-badge ctr-badge-fresh">NEW ✓</span>':''}
-      <div style="margin-left:auto;display:flex;gap:4px">
-        <button class="cbtn cbtn-switch" onclick="craneSwitchTo(${phone},'${c.name}')">Switch</button>
-        <button class="cbtn cbtn-wipe"   onclick="craneWipe(${phone},'${c.name}')">Wipe</button>
-        <button class="cbtn cbtn-del"    onclick="craneDel(${phone},'${c.name}')">Del</button>
+      ${c.active?'<span class="ctr-badge ctr-active-b">ACTIVE</span>':''}
+      ${fresh?'<span class="ctr-badge ctr-fresh-b">NEW ✓</span>':''}
+      <div style="margin-left:auto;display:flex;gap:3px">
+        <button class="cbtn cbtn-sw" onclick="craneSwitchTo(${phone},'${c.name}')">Switch</button>
+        <button class="cbtn cbtn-wi" onclick="craneWipe(${phone},'${c.name}')">Wipe</button>
+        <button class="cbtn cbtn-de" onclick="craneDel(${phone},'${c.name}')">Del</button>
       </div>
     </div>`;
   }).join('');
 }
 
 function renderCraneLog(phone){
-  const el=document.getElementById('crane-log-'+phone);
-  if(!el)return;
+  const el=document.getElementById('crane-log-'+phone);if(!el)return;
   el.innerHTML=(craneLogs[phone]||[]).map(l=>`<div class="crane-log-item ${l.status}">[${l.t}] ${l.text}${l.result?' → '+l.result:''}</div>`).join('')||'<div class="crane-log-item">No commands yet</div>';
 }
 
@@ -653,95 +556,59 @@ function toggleSelect(phone,name,checked){
   if(!craneSelected[phone])craneSelected[phone]=new Set();
   checked?craneSelected[phone].add(name):craneSelected[phone].delete(name);
   const n=(craneSelected[phone]||new Set()).size;
-  const el=document.getElementById('crane-selcount-'+phone);
-  if(el)el.textContent=n?n+' selected':'';
+  const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=n?n+' selected':'';
   updateCommand(phone);
 }
-
 function selectAll(phone){craneSelected[phone]=new Set((craneCtrs[phone]||[]).map(c=>c.name));renderCraneContainers(phone);updateCommand(phone);const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=(craneCtrs[phone]||[]).length+' selected';}
 function selectNone(phone){craneSelected[phone]=new Set();renderCraneContainers(phone);updateCommand(phone);const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent='';}
 function selectFresh(phone){const st=craneState[phone]||{};craneSelected[phone]=new Set(Object.entries(st).filter(([,v])=>v.status==='fresh').map(([k])=>k));renderCraneContainers(phone);const n=(craneSelected[phone]||new Set()).size;const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=n?n+' selected':'';updateCommand(phone);}
 function selectAllExcept(phone){
-  // Parse keep numbers from input
-  const inp=document.getElementById('keep-input-'+phone);
-  if(!inp||!inp.value.trim()){alert('Type container numbers to KEEP first (e.g. 3,4,8,15,19)');return;}
-  const keepNums=new Set(inp.value.split(',').map(x=>parseInt(x.trim())).filter(n=>!isNaN(n)));
-  const ctrs=craneCtrs[phone]||[];
-  // Select all containers whose number is NOT in keepNums
-  craneSelected[phone]=new Set(ctrs.filter(c=>{
-    const num=ctrNum(c.name);
-    return num===null||!keepNums.has(num);
-  }).map(c=>c.name));
-  renderCraneContainers(phone);
-  const n=(craneSelected[phone]||new Set()).size;
-  const el=document.getElementById('crane-selcount-'+phone);
-  if(el)el.textContent=n?n+' selected':'';
-  updateCommand(phone);
+  const inp=document.getElementById('keep-input-'+phone);if(!inp||!inp.value.trim()){alert('Enter container numbers to KEEP first');return;}
+  const keep=new Set(inp.value.split(',').map(x=>parseInt(x.trim())).filter(n=>!isNaN(n)));
+  craneSelected[phone]=new Set((craneCtrs[phone]||[]).filter(c=>{const num=ctrNum(c.name);return num===null||!keep.has(num);}).map(c=>c.name));
+  renderCraneContainers(phone);const n=(craneSelected[phone]||new Set()).size;const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=n?n+' selected':'';updateCommand(phone);
 }
-
 function updateCommand(phone){
-  const box=document.getElementById('crane-cmd-box-'+phone);
-  const inp=document.getElementById('crane-cmd-'+phone);
-  if(!box||!inp)return;
-  const sel=craneSelected[phone]||new Set();
-  const state=craneState[phone]||{};
-  const freshSel=[...sel].filter(n=>state[n]?.status==='fresh');
-  const targets=freshSel.length?freshSel:[...sel];
+  const box=document.getElementById('crane-cmd-box-'+phone),inp=document.getElementById('crane-cmd-'+phone);if(!box||!inp)return;
+  const sel=craneSelected[phone]||new Set(),state=craneState[phone]||{};
+  const freshSel=[...sel].filter(n=>state[n]?.status==='fresh'),targets=freshSel.length?freshSel:[...sel];
   if(!targets.length){box.style.display='none';return;}
   const nums=targets.map(n=>ctrNum(n)).filter(Boolean).sort((a,b)=>a-b).join(',');
   const script=document.getElementById('crane-script-'+phone)?.value||'fb_reel_auto_v3.py';
   const link=document.getElementById('crane-link-'+phone)?.value||'0';
-  inp.value=`python ${script} --phone ${phone} --only ${nums} --link ${link}`;
+  const linkArg=link!=='0'?` --link ${link}`:'';
+  inp.value=`python ${script} --phone ${phone} --only ${nums}${linkArg}`;
   box.style.display='block';
 }
-
 function copyCmd(phone){
-  const el=document.getElementById('crane-cmd-'+phone);
-  if(!el?.value)return;
+  const el=document.getElementById('crane-cmd-'+phone);if(!el?.value)return;
   navigator.clipboard.writeText(el.value).catch(()=>{el.select();document.execCommand('copy');});
-  const btn=document.getElementById('crane-copybtn-'+phone);
-  if(btn){btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent='Copy',2000);}
+  const btn=document.getElementById('crane-copybtn-'+phone);if(btn){btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent='Copy',2000);}
 }
-
 async function craneSendList(phone){await craneCmd(phone,'list');}
 function craneSwitchTo(phone,name){if(confirm('Switch to '+name+'?'))craneCmd(phone,'switch','',name);}
 function craneWipe(phone,name){if(confirm('Wipe '+name+'?'))craneCmd(phone,'wipe','',name);}
 function craneDel(phone,name){if(confirm('DELETE '+name+'?'))craneCmd(phone,'delete','',name);}
-
 async function deleteSelected(phone){
-  const sel=craneSelected[phone]||new Set();
-  if(!sel.size){alert('Select containers first');return;}
+  const sel=craneSelected[phone]||new Set();if(!sel.size){alert('Select containers first');return;}
   if(!confirm(`Delete ${sel.size} container(s)?\n${[...sel].join(', ')}`))return;
   for(const name of sel){await craneCmd(phone,'delete','',name);await new Promise(r=>setTimeout(r,500));}
 }
-
 async function deleteAndCreate(phone){
-  const sel=craneSelected[phone]||new Set();
-  if(!sel.size){alert('Select containers first');return;}
+  const sel=craneSelected[phone]||new Set();if(!sel.size){alert('Select containers first');return;}
   if(!confirm(`Delete ${sel.size} and create fresh?\n${[...sel].join(', ')}`))return;
   await craneCmd(phone,'delete_and_create',[...sel].join(','),'');
 }
-
 function toggleCrane(phone){
-  craneOpen[phone]=!craneOpen[phone];
-  const panel=document.getElementById('crane-panel-'+phone);
-  if(craneOpen[phone]){
-    panel?.classList.add('open');
-    refreshContainers(phone);  // show cached instantly
-    craneSendList(phone);       // also trigger fresh SSH list from phone
-  } else {
-    panel?.classList.remove('open');
-  }
+  craneOpen[phone]=!craneOpen[phone];const panel=document.getElementById('crane-panel-'+phone);
+  if(craneOpen[phone]){panel?.classList.add('open');refreshContainers(phone);craneSendList(phone);}
+  else{panel?.classList.remove('open');}
 }
-
 function openCreateModal(phone){modalPhone=phone;document.getElementById('modal-name').value='';document.getElementById('modal-create').classList.add('open');setTimeout(()=>document.getElementById('modal-name').focus(),100);}
 function closeModal(){document.getElementById('modal-create').classList.remove('open');modalPhone=null;}
 function modalConfirmCreate(){const n=document.getElementById('modal-name').value.trim();if(!n){alert('Enter a name');return;}closeModal();craneCmd(modalPhone,'create',n,'');}
-
 document.getElementById('modal-create').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.getElementById('modal-name').addEventListener('keydown',e=>{if(e.key==='Enter')modalConfirmCreate();});
-
-// Auto-refresh every 15s silently
 setInterval(load,15000);
 buildCards();
 load();

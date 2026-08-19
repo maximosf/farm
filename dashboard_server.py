@@ -65,7 +65,7 @@ def _rdel(key):
     _redis('POST', f'/del/{key}')
 
 def _rkeys(pattern):
-    raw = _redis('POST', f'/keys/{pattern}')
+    raw = _redis('GET', f'/keys/{pattern}')
     return raw if isinstance(raw, list) else []
 
 # ─── IN-MEMORY CACHE ─────────────────────────────────────────────────────────
@@ -109,6 +109,7 @@ def _load_all():
 
 # ─── FOLLOWER HISTORY (24h delta) ────────────────────────────────────────────
 def _parse_followers(raw):
+    """Convert 1.5K→1500, 5.1K→5100, 1M→1000000, 123→123."""
     s = str(raw).strip().upper().replace(',','').replace(' ','')
     if not s or s in ('?','—',''):
         return 0
@@ -117,6 +118,14 @@ def _parse_followers(raw):
         if s.endswith('M'): return int(float(s[:-1]) * 1_000_000)
         return int(float(s))
     except: return 0
+
+def _normalize_followers(accounts: dict):
+    """Normalize all follower counts to integers when saving."""
+    for acc in accounts.values():
+        raw = acc.get('followers', '?')
+        if raw and str(raw) not in ('?', ''):
+            num = _parse_followers(raw)
+            acc['followers'] = str(num)  # always store as number string
 
 def _update_follower_history(platform, phone, accounts):
     """Store follower + views counts and compute 24h deltas."""
@@ -148,6 +157,30 @@ def _update_follower_history(platform, phone, accounts):
     _rset(hist_key, history)
     return deltas
 
+# ─── DAILY FOLLOWER LOG (per container per day) ─────────────────────────────
+def _log_daily_followers(platform, phone, accounts):
+    """Store one entry per day per container. Keeps last 60 days."""
+    today = datetime.date.today().isoformat()
+    for acc_num, acc in accounts.items():
+        flw = _parse_followers(acc.get('followers', 0))
+        if flw <= 0:
+            continue
+        key = f'{platform}:flw_daily:{phone}:{acc_num}'
+        log = _rget(key) or {}
+        log[today] = flw
+        # Keep last 60 days
+        if len(log) > 60:
+            oldest = sorted(log.keys())[:-60]
+            for d in oldest:
+                del log[d]
+        _rset(key, log)
+
+def _get_daily_followers(platform, phone, container):
+    """Return sorted list of {date, followers} for one container."""
+    key = f'{platform}:flw_daily:{phone}:{container}'
+    log = _rget(key) or {}
+    return [{'date': d, 'followers': v} for d, v in sorted(log.items())]
+
 # ─── FIRST-SEEN TRACKING (account created date) ──────────────────────────────
 def _track_first_seen(platform, phone, accounts):
     """Record the first time we see each account (approximate created date)."""
@@ -168,6 +201,34 @@ def _get_first_seen(platform, phone):
 # ─── STATUS SAVE/LOAD ─────────────────────────────────────────────────────────
 def _save(platform, phone, data):
     store = _fb if platform == 'fb' else _ig
+    existing = store.get(phone, {})
+
+    # Always merge accounts — never overwrite good data with empty
+    if existing.get('accounts'):
+        merged = dict(existing['accounts'])  # start with everything we know
+        incoming = data.get('accounts') or {}
+        for acc_num, acc in incoming.items():
+            key = str(acc_num)
+            if key not in merged:
+                merged[key] = acc
+            else:
+                # Update fields — but never replace a real follower count with '?' or 0
+                for field, val in acc.items():
+                    if field == 'followers':
+                        if val and str(val) not in ('?', '', '0'):
+                            merged[key]['followers'] = val
+                        # else: keep existing good value
+                    else:
+                        if val is not None:
+                            merged[key][field] = val
+        data['accounts'] = merged
+
+    # Preserve reels_posted/verified totals — always take the higher value
+    for field in ('reels_posted', 'reels_verified'):
+        old_val = existing.get(field) or 0
+        new_val = data.get(field) or 0
+        data[field] = max(old_val, new_val)
+
     store[phone] = data
     _rset(f'{platform}:status:{phone}', data)
 
@@ -273,6 +334,15 @@ class Handler(BaseHTTPRequestHandler):
                 self.out(result)
                 return
 
+        # Follower daily history: /followers_history/fb/1/5
+        for platform in ('fb', 'ig'):
+            if p.startswith(f'/followers_history/{platform}/'):
+                parts = p.split('/')
+                if len(parts) >= 5:
+                    phone, container = parts[3], parts[4]
+                    self.out({'history': _get_daily_followers(platform, phone, container)}); return
+                self.out({'history': []}); return
+
         # Snapshots
         if p == '/snapshots':
             self.out({'dates': _list_snapshots()}); return
@@ -325,6 +395,8 @@ class Handler(BaseHTTPRequestHandler):
                 with _lock:
                     # Compute 24h follower + views deltas
                     if data.get('accounts'):
+                        _normalize_followers(data['accounts'])  # convert K/M to numbers
+                        _log_daily_followers(platform, phone, data['accounts'])  # daily history
                         deltas   = _update_follower_history(platform, phone, data['accounts'])
                         created  = _track_first_seen(platform, phone, data['accounts'])
                         for acc_num, acc in data['accounts'].items():
@@ -333,6 +405,27 @@ class Handler(BaseHTTPRequestHandler):
                             acc['views_delta_24h'] = d.get('views') if isinstance(d, dict) else None
                             acc['created_at']      = created.get(str(acc_num))
                     _save(platform, phone, data)
+                self.out({'ok': True}); return
+
+        # Followers-only update from phone_reporter
+        for platform in ('fb', 'ig'):
+            if p.startswith(f'/update/followers/{platform}/'):
+                phone = p.split('/')[-1]
+                with _lock:
+                    existing = _get(platform, phone) or {}
+                    accs = existing.get('accounts', {})
+                    for acc_num, flw in (data.get('followers') or {}).items():
+                        if str(acc_num) not in accs:
+                            accs[str(acc_num)] = {}
+                        accs[str(acc_num)]['followers'] = flw
+                        accs[str(acc_num)]['followers_ts'] = time.time()
+                    existing['accounts'] = accs
+                    # Update 24h history
+                    deltas = _update_follower_history(platform, phone, accs)
+                    for acc_num, acc in accs.items():
+                        d = deltas.get(str(acc_num), {})
+                        acc['delta_24h'] = d.get('followers') if isinstance(d, dict) else d
+                    _save(platform, phone, existing)
                 self.out({'ok': True}); return
 
         # Crane
