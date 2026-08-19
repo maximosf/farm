@@ -523,8 +523,20 @@ async function refreshContainers(phone){
     const d1=await r1.json(),d2=await r2.json();
     craneCtrs[phone]=d1.containers||[];craneState[phone]=d2.state||{};
     if(!craneSelected[phone])craneSelected[phone]=new Set();
+    // Persist to localStorage so containers survive page refresh
+    try{localStorage.setItem('craneCtrs_'+platform+'_'+phone,JSON.stringify(craneCtrs[phone]));}catch(e){}
+    try{localStorage.setItem('craneState_'+platform+'_'+phone,JSON.stringify(craneState[phone]));}catch(e){}
     renderCraneContainers(phone);updateCommand(phone);
   }catch(e){}
+}
+
+function loadCraneCache(){
+  // Load persisted crane containers on page load
+  for(const num of Object.keys(PHONES)){
+    const n=parseInt(num);
+    try{const c=localStorage.getItem('craneCtrs_'+platform+'_'+n);if(c)craneCtrs[n]=JSON.parse(c);}catch(e){}
+    try{const s=localStorage.getItem('craneState_'+platform+'_'+n);if(s)craneState[n]=JSON.parse(s);}catch(e){}
+  }
 }
 
 function renderCraneContainers(phone){
@@ -621,6 +633,7 @@ function modalConfirmCreate(){const n=document.getElementById('modal-name').valu
 document.getElementById('modal-create').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.getElementById('modal-name').addEventListener('keydown',e=>{if(e.key==='Enter')modalConfirmCreate();});
 setInterval(load,15000);
+loadCraneCache();
 buildCards();
 load();
 </script>
