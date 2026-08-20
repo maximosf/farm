@@ -1,6 +1,6 @@
 """
-Farm Dashboard Server v4 — atomic FB + IG roster separation
-Persistent via Upstash Redis. 24h follower delta. First-seen date tracking.
+Farm Dashboard Server v5 — atomic FB + IG roster separation
+Persistent via Upstash Redis or an attached Railway Volume. 24h follower delta.
 
 Endpoints:
   POST /update/fb/{phone}    FB script sends status
@@ -21,7 +21,7 @@ Endpoints:
   POST /crane/state/{p}      update state
 """
 
-import json, os, uuid, time, datetime, threading, hashlib
+import json, os, uuid, time, datetime, threading, hashlib, fnmatch
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 try:
@@ -33,6 +33,44 @@ except ImportError:
 
 UPSTASH_URL   = os.environ.get('UPSTASH_URL', '')
 UPSTASH_TOKEN = os.environ.get('UPSTASH_TOKEN', '')
+_volume_path  = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '').strip()
+_local_store_path = os.path.join(_volume_path, 'farm_dashboard_state.json') if _volume_path else ''
+_local_store = {}
+_local_lock = threading.RLock()
+
+def _init_local_store():
+    """Use Railway's attached volume when no Upstash database is configured."""
+    global _local_store_path, _local_store
+    if UPSTASH_URL or not _local_store_path:
+        return
+    try:
+        os.makedirs(os.path.dirname(_local_store_path), exist_ok=True)
+        if os.path.isfile(_local_store_path):
+            with open(_local_store_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                _local_store = data
+    except Exception as e:
+        print(f'[storage] Volume unavailable: {e}')
+        _local_store_path = ''
+
+def _save_local_store():
+    if not _local_store_path:
+        return
+    temp_path = _local_store_path + '.tmp'
+    with open(temp_path, 'w', encoding='utf-8') as f:
+        json.dump(_local_store, f, separators=(',', ':'))
+    os.replace(temp_path, _local_store_path)
+
+def _using_persistent_store():
+    return bool(UPSTASH_URL or _local_store_path)
+
+def _storage_label():
+    if UPSTASH_URL:
+        return 'Upstash Redis'
+    if _local_store_path:
+        return f'Railway Volume ({_volume_path})'
+    return 'MEMORY ONLY'
 
 # ─── UPSTASH ─────────────────────────────────────────────────────────────────
 def _redis(method, path, body=None):
@@ -53,24 +91,48 @@ def _redis(method, path, body=None):
         return None
 
 def _rset(key, value):
-    _redis('POST', f'/set/{key}', json.dumps(value).encode())
+    if UPSTASH_URL:
+        _redis('POST', f'/set/{key}', json.dumps(value).encode())
+        return
+    if _local_store_path:
+        with _local_lock:
+            _local_store[key] = value
+            _save_local_store()
 
 def _rget(key):
-    raw = _redis('GET', f'/get/{key}')
-    if raw is None: return None
-    try: return json.loads(raw)
-    except: return raw
+    if UPSTASH_URL:
+        raw = _redis('GET', f'/get/{key}')
+        if raw is None: return None
+        try: return json.loads(raw)
+        except: return raw
+    if _local_store_path:
+        with _local_lock:
+            value = _local_store.get(key)
+            return json.loads(json.dumps(value)) if value is not None else None
+    return None
 
 def _rdel(key):
-    _redis('POST', f'/del/{key}')
+    if UPSTASH_URL:
+        _redis('POST', f'/del/{key}')
+        return
+    if _local_store_path:
+        with _local_lock:
+            if key in _local_store:
+                _local_store.pop(key, None)
+                _save_local_store()
 
 def _rkeys(pattern):
-    raw = _redis('GET', f'/keys/{pattern}')
-    return raw if isinstance(raw, list) else []
+    if UPSTASH_URL:
+        raw = _redis('GET', f'/keys/{pattern}')
+        return raw if isinstance(raw, list) else []
+    if _local_store_path:
+        with _local_lock:
+            return [key for key in _local_store if fnmatch.fnmatch(key, pattern)]
+    return []
 
 # Each roster is persisted independently by platform *and phone*.  This makes
 # updates safe even if Railway serves requests from more than one process.
-ROSTER_SCHEMA = 'v4'
+ROSTER_SCHEMA = 'v5'
 
 def _roster_phone_key(platform, phone):
     return f'crane:{ROSTER_SCHEMA}:containers:{platform}:{phone}'
@@ -88,7 +150,8 @@ def _purge_retired_roster_data():
     for key in (
         _rkeys('crane:meta:*') + _rkeys('crane:v3:meta:*') +
         _rkeys('crane:v3:containers:*') + _rkeys('crane:v4:meta:*') +
-        _rkeys('crane:v4:containers:*')
+        _rkeys('crane:v4:containers:*') + _rkeys('crane:v5:meta:*') +
+        _rkeys('crane:v5:containers:*')
     ):
         _rdel(key)
 
@@ -149,10 +212,10 @@ def _invalidate_container_data(platform, phone, name):
     _rdel(f'{platform}:flw_daily:{phone}:{name}')
 
 def _load_all():
-    if not UPSTASH_URL:
-        print('[startup] No Upstash — running in-memory only')
+    if not _using_persistent_store():
+        print('[startup] No Upstash or Railway Volume — running in-memory only')
         return
-    print('[startup] Loading from Upstash...')
+    print(f'[startup] Loading from {_storage_label()}...')
     # Phone statuses
     for key in _rkeys('fb:status:*'):
         phone = key.replace('fb:status:', '')
@@ -165,7 +228,7 @@ def _load_all():
     # Crane queue
     q = _rget('crane:queue')
     if q: _crane_q.update(q)
-    # Each v4 roster is an independent platform+phone record.  Never load a
+    # Each v5 roster is an independent platform+phone record.  Never load a
     # shared list from any earlier server version.
     for platform, store in (('fb', _crane_ctrs_fb), ('ig', _crane_ctrs_ig)):
         for key in _rkeys(f'crane:{ROSTER_SCHEMA}:containers:{platform}:*'):
@@ -351,7 +414,7 @@ def _save_crane_q():
 def _get_crane_ctrs(platform, phone):
     """Read the current roster from its own durable key, never a shared map."""
     store = _crane_ctrs_fb if platform == 'fb' else _crane_ctrs_ig
-    if UPSTASH_URL:
+    if _using_persistent_store():
         saved = _rget(_roster_phone_key(platform, phone))
         if isinstance(saved, list):
             roster = _normalize_roster(saved)
@@ -422,13 +485,16 @@ class Handler(BaseHTTPRequestHandler):
         if p == '/health':
             self.out({
                 'ok': True,
-                'version': 'v4',
-                'schema': 'phone-platform-v4',
+                'version': 'v5',
+                'schema': 'phone-platform-v5',
                 'roster_storage': 'one durable record per platform and phone',
+                'storage': _storage_label(),
+                'persistent': _using_persistent_store(),
             })
             return
 
-        # Permanently purge every old roster namespace.  Only v4 reporter
+        # Permanently purge every old roster namespace.  The current v4 phone
+        # reporter may repopulate the new v5 store.
         # updates may repopulate the new platform-specific store.
         if p == '/admin/reset-containers':
             with _lock:
@@ -641,7 +707,8 @@ class Handler(BaseHTTPRequestHandler):
         self.out({})
 
 if __name__ == '__main__':
+    _init_local_store()
     _load_all()
     port = int(os.environ.get('PORT', 5050))
-    print(f'Farm Dashboard v4 | Port {port} | Upstash: {"OK" if UPSTASH_URL else "NOT SET"}')
+    print(f'Farm Dashboard v5 | Port {port} | Storage: {_storage_label()}')
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
