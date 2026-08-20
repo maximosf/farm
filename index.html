@@ -366,29 +366,61 @@ function buildAccRows(p,n,ctrs,ac,linkCls,flwCls){
   }).join('');
 }
 
+function rosterStorageKey(p,n){return `craneCtrs_${p}_${n}`;}
+function rosterStateKey(p,n){return `craneState_${p}_${n}`;}
+function rosterCacheKey(p,n){return `${p}-${n}`;}
+function normalizeClientRoster(arr){
+  if(!Array.isArray(arr))return [];
+  const out=[],seen=new Set();
+  for(const c of arr){
+    if(!c||c.name===undefined||c.name===null)continue;
+    const name=String(c.name).trim();
+    if(!/^\d+$/.test(name)||seen.has(name))continue;
+    seen.add(name);
+    out.push({name,num:Number(c.num||name),uuid:String(c.uuid||''),active:!!c.active});
+  }
+  return out.sort((a,b)=>a.num-b.num);
+}
+function getAccountForContainer(accs,c){
+  const keys=[String(c.name),String(c.num)];
+  for(const k of keys){if(accs&&accs[k])return accs[k];}
+  const target=String(c.num);
+  if(accs){for(const v of Object.values(accs)){if(v&&v.container!==undefined&&String(v.container)===target)return v;}}
+  return {};
+}
+
+async function fetchRoster(p,n){
+  try{
+    const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});
+    if(r.ok){
+      const d=await r.json();
+      const ctrs=normalizeClientRoster(d.containers||[]);
+      craneCtrs[n]=ctrs;
+      try{localStorage.setItem(rosterStorageKey(p,n),JSON.stringify(ctrs));}catch(e){}
+      return {ok:true,containers:ctrs,meta:d.meta||{}};
+    }
+  }catch(e){}
+  // Network/offline fallback only. Never build a roster from /status.
+  try{
+    const cached=localStorage.getItem(rosterStorageKey(p,n));
+    const ctrs=normalizeClientRoster(cached?JSON.parse(cached):[]);
+    craneCtrs[n]=ctrs;
+    return {ok:false,containers:ctrs,meta:{cached:true}};
+  }catch(e){craneCtrs[n]=[];return {ok:false,containers:[],meta:{}};}
+}
+
 async function load(){
   const p=platform,ac=p==='fb'?'c-fb':'c-ig',flwCls=p==='fb'?'acc-flw':'acc-flw ig',linkCls=p==='fb'?'detail-link':'detail-link ig';
   let totalAccs=0,totalReels=0,active=0,totalFlw=0,totalDelta=0,deltaCnt=0,totalIssues=0;
 
   const results=await Promise.all(Object.keys(PHONES).map(async num=>{
-    const n=parseInt(num);let s=null,ctrs=[];
-    try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok)s=await r.json();}catch(e){}
-    // Use craneCtrs from localStorage as primary source (set when user does List)
-    // Only fetch from API if we have nothing cached
-    if(craneCtrs[n]&&craneCtrs[n].length){
-      ctrs=craneCtrs[n];
-    }else{
-      try{const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});
-        if(r.ok){const d=await r.json();ctrs=(d.containers||[]).sort((a,b)=>a.num-b.num);
-          if(ctrs.length){craneCtrs[n]=ctrs;try{localStorage.setItem('craneCtrs_'+p+'_'+n,JSON.stringify(ctrs));}catch(e){}}
-        }
-      }catch(e){}
-      // Last resort: build from status accounts
-      if(!ctrs.length&&s&&s.accounts){
-        ctrs=Object.keys(s.accounts).sort((a,b)=>parseInt(a)-parseInt(b))
-          .map(k=>({name:k,num:parseInt(k),active:false}));
-      }
-    }
+    const n=parseInt(num);let s=null;
+    const [statusResult,rosterResult]=await Promise.all([
+      (async()=>{try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(5000)});return r.ok?await r.json():null;}catch(e){return null;}})(),
+      fetchRoster(p,n)
+    ]);
+    s=statusResult;
+    const ctrs=rosterResult.containers; // Crane roster is the ONLY container membership source.
     return{n,s,ctrs};
   }));
 
@@ -397,22 +429,21 @@ async function load(){
     if(run)active++;
     const reels=s?.reels_posted||0;totalReels+=reels;
     const ctrCount=ctrs.length;totalAccs+=ctrCount;
-    const pct=s&&s.container&&s.total_containers?Math.min(100,Math.round(s.container/s.total_containers*100)):0;
+    // Progress is based on the permanent Crane roster, never the poster's temporary video count.
+    const currentNum=Number(s?.current_container||0);
+    const pct=ctrCount?Math.min(100,Math.round((currentNum/ctrCount)*100)):0;
     const accs=s?.accounts||{};
     const e=id=>document.getElementById(id);
-
     const card=e(`card-${p}-${n}`);
     if(card)card.className=`card${run?p==='fb'?' running-fb':' running-ig':err?' has-error':''}`;
-
     const pill=e(`pill-${p}-${n}`);
     if(pill){pill.className=`pill ${run?p==='fb'?'pill-run-fb':'pill-run-ig':err?'pill-err':'pill-idle'}`;pill.innerHTML=run?`<span class="dot ${p==='fb'?'dot-fb':'dot-ig'}"></span>Running`:'Idle';}
-
-    if(e(`plabel-${p}-${n}`))e(`plabel-${p}-${n}`).textContent=run?`Container ${s?.container||0} / ${s?.total_containers||ctrCount||'—'}`:`${ctrCount} containers`;
-    if(e(`ppct-${p}-${n}`))e(`ppct-${p}-${n}`).textContent=run?pct+'%':'';
-    if(e(`pfill-${p}-${n}`))e(`pfill-${p}-${n}`).style.width=pct+'%';
+    if(e(`plabel-${p}-${n}`))e(`plabel-${p}-${n}`).textContent=run?`Container ${currentNum} / ${ctrCount||'—'}`:`${ctrCount} containers`;
+    if(e(`ppct-${p}-${n}`))e(`ppct-${p}-${n}`).textContent=run&&ctrCount?pct+'%':'';
+    if(e(`pfill-${p}-${n}`))e(`pfill-${p}-${n}`).style.width=(run&&ctrCount?pct:0)+'%';
     if(e(`ms-reels-${p}-${n}`))e(`ms-reels-${p}-${n}`).textContent=reels||'—';
 
-    const ctrKey=ctrs.map(c=>c.name).join(',');
+    const ctrKey=ctrs.map(c=>`${c.name}|${c.uuid||''}`).join(',');
     const listEl=e(`acc-list-${p}-${n}`);
     if(listEl&&ctrKey!==_ctrCache[`${p}-${n}`]){listEl.innerHTML=buildAccRows(p,n,ctrs,ac,linkCls,flwCls);_ctrCache[`${p}-${n}`]=ctrKey;}
     if(e(`acc-count-${p}-${n}`))e(`acc-count-${p}-${n}`).textContent=ctrCount?`${ctrCount} total`:'0';
@@ -421,28 +452,25 @@ async function load(){
     let phoneFlw=0,phoneDelta=0,phoneDeltaCnt=0;
     for(const c of ctrs){
       const a=c.name;
-      // Try name as-is, as int, and as string number to match whatever key the script sent
-      const acc=accs[a]||accs[String(parseInt(a))]||accs[parseInt(a)]||{};
+      const acc=getAccountForContainer(accs,c);
       const flwNum=parseFollowers(acc.followers);
       phoneFlw+=flwNum;totalFlw+=flwNum;
       const d=acc.delta_24h;
       if(d!==null&&d!==undefined&&!isNaN(Number(d))){const dv=Number(d);phoneDelta+=dv;phoneDeltaCnt++;totalDelta+=dv;deltaCnt++;}
       const st=acc.status||'ok';
       if(st==='verify'||st==='logged_out'||st==='ban')totalIssues++;
-
       const row=e(`ar-${p}-${n}-${a}`);
-      if(row){const isCur=String(s?.current_container)===String(a);row.className=`acc-row${isCur?p==='fb'?' acc-active':' acc-active-ig':''}${expanded[`${p}-${n}-${a}`]?' expanded':''}`;}
+      if(row){const isCur=String(currentNum)===String(a);row.className=`acc-row${isCur?p==='fb'?' acc-active':' acc-active-ig':''}${expanded[`${p}-${n}-${a}`]?' expanded':''}`;}
       if(e(`an-${p}-${n}-${a}`)&&acc.name&&acc.name!=='?')e(`an-${p}-${n}-${a}`).textContent=acc.name;
       if(e(`flw-${p}-${n}-${a}`))e(`flw-${p}-${n}-${a}`).textContent=flwNum>0?fmt(flwNum):'—';
-      const delta=fmtDelta(d);const del=e(`delta-${p}-${n}-${a}`);
+      const delta=fmtDelta(d),del=e(`delta-${p}-${n}-${a}`);
       if(del){del.textContent=delta.text;del.className=`acc-delta ${delta.cls}`;}
       const badge=e(`badge-${p}-${n}-${a}`);
       if(badge){const cls=st==='verify'?'b-verify':st==='logged_out'?'b-logout':st==='ban'?'b-ban':'';const txt=st==='verify'?'VERIFY':st==='logged_out'?'OUT':st==='ban'?'BAN':'';badge.innerHTML=cls?`<span class="${cls}">${txt}</span>`:'';}
       if(expanded[`${p}-${n}-${a}`])updateDetail(p,n,a,acc,s);
     }
-
     if(e(`ms-flw-${p}-${n}`))e(`ms-flw-${p}-${n}`).textContent=phoneFlw>0?fmt(phoneFlw):'—';
-    const pDelta=fmtDelta(phoneDeltaCnt?phoneDelta:null);const pdEl=e(`ms-delta-${p}-${n}`);
+    const pDelta=fmtDelta(phoneDeltaCnt?phoneDelta:null),pdEl=e(`ms-delta-${p}-${n}`);
     if(pdEl){pdEl.textContent=pDelta.text;pdEl.style.color=pDelta.cls==='pos'?'var(--green)':pDelta.cls==='neg'?'var(--red)':'var(--t3)';}
   }
 
@@ -453,14 +481,13 @@ async function load(){
   const hd=fmtDelta(deltaCnt?totalDelta:null);const hde=document.getElementById('h-delta');
   hde.textContent=hd.text;hde.style.color=hd.cls==='pos'?'var(--green)':hd.cls==='neg'?'var(--red)':'var(--t3)';
   document.getElementById('h-lu').textContent='↻ '+new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit'});
-
   document.getElementById('s-accounts').textContent=totalAccs||'—';
   document.getElementById('s-active').textContent=active||'—';
   document.getElementById('s-active-sub').textContent='of '+Object.keys(PHONES).length+' phones';
   document.getElementById('s-reels').textContent=fmt(totalReels)||'—';
   document.getElementById('s-followers').textContent=totalFlw>0?fmtFull(totalFlw):'—';
   document.getElementById('s-followers-sub').textContent=totalFlw>0?'= '+fmt(totalFlw)+' followers':'across all accounts';
-  const sd=fmtDelta(deltaCnt?totalDelta:null);const sde=document.getElementById('s-delta');
+  const sd=fmtDelta(deltaCnt?totalDelta:null),sde=document.getElementById('s-delta');
   sde.textContent=sd.text;sde.style.color=sd.cls==='pos'?'var(--green)':sd.cls==='neg'?'var(--red)':'var(--t3)';
   const si=document.getElementById('s-issues');if(si){si.textContent=totalIssues||'0';si.style.color=totalIssues?'var(--yellow)':'var(--green)';}
   if(document.getElementById('s-issues-sub'))document.getElementById('s-issues-sub').textContent=totalIssues?totalIssues+' accounts need attention':'All accounts OK';
@@ -542,43 +569,41 @@ async function pollCmd(phone,id){
 
 async function refreshContainers(phone){
   try{
-    const[r1,r2]=await Promise.all([fetch(API+'/crane/containers/'+platform+'/'+phone),fetch(API+'/crane/state/'+platform+'/'+phone)]);
-    const d1=await r1.json(),d2=await r2.json();
-    craneCtrs[phone]=d1.containers||[];craneState[phone]=d2.state||{};
+    const[r1,r2]=await Promise.all([
+      fetch(API+'/crane/containers/'+platform+'/'+phone,{signal:AbortSignal.timeout(5000)}),
+      fetch(API+'/crane/state/'+platform+'/'+phone,{signal:AbortSignal.timeout(5000)})
+    ]);
+    if(!r1.ok)throw new Error('roster fetch failed');
+    const d1=await r1.json(),d2=r2.ok?await r2.json():{state:{}};
+    craneCtrs[phone]=normalizeClientRoster(d1.containers||[]);
+    craneState[phone]=d2.state||{};
     if(!craneSelected[phone])craneSelected[phone]=new Set();
-    // Persist to localStorage — survives page refresh forever
-    try{localStorage.setItem('craneCtrs_'+platform+'_'+phone,JSON.stringify(craneCtrs[phone]));}catch(e){}
-    try{localStorage.setItem('craneState_'+platform+'_'+phone,JSON.stringify(craneState[phone]));}catch(e){}
-    renderCraneContainers(phone);
-    updateCommand(phone);
-    // ALSO update the main acc-list with the fresh container data
-    const p=platform;
-    const ac=p==='fb'?'c-fb':'c-ig',flwCls=p==='fb'?'acc-flw':'acc-flw ig',linkCls=p==='fb'?'detail-link':'detail-link ig';
+    try{localStorage.setItem(rosterStorageKey(platform,phone),JSON.stringify(craneCtrs[phone]));}catch(e){}
+    try{localStorage.setItem(rosterStateKey(platform,phone),JSON.stringify(craneState[phone]));}catch(e){}
+    renderCraneContainers(phone);updateCommand(phone);
+    const p=platform,ac=p==='fb'?'c-fb':'c-ig',flwCls=p==='fb'?'acc-flw':'acc-flw ig',linkCls=p==='fb'?'detail-link':'detail-link ig';
+    const key=rosterCacheKey(p,phone),ctrKey=craneCtrs[phone].map(c=>`${c.name}|${c.uuid||''}`).join(',');
     const listEl=document.getElementById('acc-list-'+p+'-'+phone);
-    if(listEl&&craneCtrs[phone].length){
-      listEl.innerHTML=buildAccRows(p,phone,craneCtrs[phone],ac,linkCls,flwCls);
-      _ctrCache[p+'-'+phone]=craneCtrs[phone].map(c=>c.name).join(',');
-    }
-    if(document.getElementById('acc-count-'+p+'-'+phone))
-      document.getElementById('acc-count-'+p+'-'+phone).textContent=craneCtrs[phone].length+' total';
-    if(document.getElementById('ms-accs-'+p+'-'+phone))
-      document.getElementById('ms-accs-'+p+'-'+phone).textContent=craneCtrs[phone].length||'—';
-  }catch(e){}
+    if(listEl&&ctrKey!==_ctrCache[key]){listEl.innerHTML=buildAccRows(p,phone,craneCtrs[phone],ac,linkCls,flwCls);_ctrCache[key]=ctrKey;}
+    const count=craneCtrs[phone].length;
+    if(document.getElementById('acc-count-'+p+'-'+phone))document.getElementById('acc-count-'+p+'-'+phone).textContent=count?count+' total':'0';
+    if(document.getElementById('ms-accs-'+p+'-'+phone))document.getElementById('ms-accs-'+p+'-'+phone).textContent=count||'—';
+    return true;
+  }catch(e){return false;}
 }
 
 function loadCraneCache(){
-  // Load persisted crane containers on page load for current platform
   for(const num of Object.keys(PHONES)){
     const n=parseInt(num);
-    try{const c=localStorage.getItem('craneCtrs_'+platform+'_'+n);if(c){craneCtrs[n]=JSON.parse(c);}}catch(e){}
-    try{const s=localStorage.getItem('craneState_'+platform+'_'+n);if(s){craneState[n]=JSON.parse(s);}}catch(e){}
+    try{const c=localStorage.getItem(rosterStorageKey(platform,n));craneCtrs[n]=normalizeClientRoster(c?JSON.parse(c):[]);}catch(e){craneCtrs[n]=[];}
+    try{const s=localStorage.getItem(rosterStateKey(platform,n));craneState[n]=s?JSON.parse(s):{};}catch(e){craneState[n]={};}
   }
 }
 
 function renderCraneContainers(phone){
   const el=document.getElementById('crane-ctrs-'+phone);if(!el)return;
   const ctrs=craneCtrs[phone]||[],state=craneState[phone]||{},sel=craneSelected[phone]||new Set();
-  if(!ctrs.length){el.innerHTML='<div class="empty">No containers found</div>';return;}
+  if(!ctrs.length){el.innerHTML='<div class="empty">No containers in saved Crane roster</div>';return;}
   el.innerHTML=ctrs.map(c=>{
     const fresh=state[c.name]?.status==='fresh';
     return`<div class="ctr-row${c.active?' ctr-active':''}${fresh?' ctr-fresh':''}">
@@ -595,73 +620,16 @@ function renderCraneContainers(phone){
   }).join('');
 }
 
-function renderCraneLog(phone){
-  const el=document.getElementById('crane-log-'+phone);if(!el)return;
-  el.innerHTML=(craneLogs[phone]||[]).map(l=>`<div class="crane-log-item ${l.status}">[${l.t}] ${l.text}${l.result?' → '+l.result:''}</div>`).join('')||'<div class="crane-log-item">No commands yet</div>';
-}
-
-function toggleSelect(phone,name,checked){
-  if(!craneSelected[phone])craneSelected[phone]=new Set();
-  checked?craneSelected[phone].add(name):craneSelected[phone].delete(name);
-  const n=(craneSelected[phone]||new Set()).size;
-  const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=n?n+' selected':'';
-  updateCommand(phone);
-}
-function selectAll(phone){craneSelected[phone]=new Set((craneCtrs[phone]||[]).map(c=>c.name));renderCraneContainers(phone);updateCommand(phone);const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=(craneCtrs[phone]||[]).length+' selected';}
-function selectNone(phone){craneSelected[phone]=new Set();renderCraneContainers(phone);updateCommand(phone);const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent='';}
-function selectFresh(phone){const st=craneState[phone]||{};craneSelected[phone]=new Set(Object.entries(st).filter(([,v])=>v.status==='fresh').map(([k])=>k));renderCraneContainers(phone);const n=(craneSelected[phone]||new Set()).size;const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=n?n+' selected':'';updateCommand(phone);}
-function selectAllExcept(phone){
-  const inp=document.getElementById('keep-input-'+phone);if(!inp||!inp.value.trim()){alert('Enter container numbers to KEEP first');return;}
-  const keep=new Set(inp.value.split(',').map(x=>parseInt(x.trim())).filter(n=>!isNaN(n)));
-  craneSelected[phone]=new Set((craneCtrs[phone]||[]).filter(c=>{const num=ctrNum(c.name);return num===null||!keep.has(num);}).map(c=>c.name));
-  renderCraneContainers(phone);const n=(craneSelected[phone]||new Set()).size;const el=document.getElementById('crane-selcount-'+phone);if(el)el.textContent=n?n+' selected':'';updateCommand(phone);
-}
-function updateCommand(phone){
-  const box=document.getElementById('crane-cmd-box-'+phone),inp=document.getElementById('crane-cmd-'+phone);if(!box||!inp)return;
-  const sel=craneSelected[phone]||new Set(),state=craneState[phone]||{};
-  const freshSel=[...sel].filter(n=>state[n]?.status==='fresh'),targets=freshSel.length?freshSel:[...sel];
-  if(!targets.length){box.style.display='none';return;}
-  const nums=targets.map(n=>ctrNum(n)).filter(Boolean).sort((a,b)=>a-b).join(',');
-  const script=document.getElementById('crane-script-'+phone)?.value||'fb_reel_auto_v3.py';
-  const link=document.getElementById('crane-link-'+phone)?.value||'0';
-  const linkArg=link!=='0'?` --link ${link}`:'';
-  inp.value=`python ${script} --phone ${phone} --only ${nums}${linkArg}`;
-  box.style.display='block';
-}
-function copyCmd(phone){
-  const el=document.getElementById('crane-cmd-'+phone);if(!el?.value)return;
-  navigator.clipboard.writeText(el.value).catch(()=>{el.select();document.execCommand('copy');});
-  const btn=document.getElementById('crane-copybtn-'+phone);if(btn){btn.textContent='✓ Copied!';setTimeout(()=>btn.textContent='Copy',2000);}
-}
-async function craneSendList(phone){await craneCmd(phone,'list');}
-function craneSwitchTo(phone,name){if(confirm('Switch to '+name+'?'))craneCmd(phone,'switch','',name);}
-function craneWipe(phone,name){if(confirm('Wipe '+name+'?'))craneCmd(phone,'wipe','',name);}
-function craneDel(phone,name){if(confirm('DELETE '+name+'?'))craneCmd(phone,'delete','',name);}
-async function deleteSelected(phone){
-  const sel=craneSelected[phone]||new Set();if(!sel.size){alert('Select containers first');return;}
-  if(!confirm(`Delete ${sel.size} container(s)?\n${[...sel].join(', ')}`))return;
-  for(const name of sel){await craneCmd(phone,'delete','',name);await new Promise(r=>setTimeout(r,500));}
-}
-async function deleteAndCreate(phone){
-  const sel=craneSelected[phone]||new Set();if(!sel.size){alert('Select containers first');return;}
-  if(!confirm(`Delete ${sel.size} and create fresh?\n${[...sel].join(', ')}`))return;
-  await craneCmd(phone,'delete_and_create',[...sel].join(','),'');
-}
 function toggleCrane(phone){
   craneOpen[phone]=!craneOpen[phone];const panel=document.getElementById('crane-panel-'+phone);
-  if(craneOpen[phone]){
-    panel?.classList.add('open');
-    // Only send list command if we have no cached data yet
-    if(craneCtrs[phone]&&craneCtrs[phone].length){
-      renderCraneContainers(phone);
-      updateCommand(phone);
-    }else{
-      refreshContainers(phone);
-      craneSendList(phone);
-    }
-  }else{
-    panel?.classList.remove('open');
-  }
+  if(!craneOpen[phone]){panel?.classList.remove('open');return;}
+  panel?.classList.add('open');
+  (async()=>{
+    const ok=await refreshContainers(phone);
+    // If the backend has no saved roster yet, explicitly ask the phone agent for one.
+    if(ok && craneCtrs[phone]?.length) return;
+    await craneSendList(phone);
+  })();
 }
 function openCreateModal(phone){modalPhone=phone;document.getElementById('modal-name').value='';document.getElementById('modal-create').classList.add('open');setTimeout(()=>document.getElementById('modal-name').focus(),100);}
 function closeModal(){document.getElementById('modal-create').classList.remove('open');modalPhone=null;}

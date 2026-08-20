@@ -21,7 +21,7 @@ Endpoints:
   POST /crane/state/{p}      update state
 """
 
-import json, os, uuid, time, datetime, threading
+import json, os, uuid, time, datetime, threading, hashlib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 try:
@@ -75,6 +75,54 @@ _crane_q    = {}
 _crane_ctrs_fb = {}   # phone -> FB containers
 _crane_ctrs_ig = {}   # phone -> IG containers
 _lock = threading.Lock()
+
+def _normalize_roster(containers):
+    """Normalize a Crane roster while preserving container identity (name + UUID)."""
+    out, seen = [], set()
+    if not isinstance(containers, list):
+        return []
+    for item in containers:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get('name', '')).strip()
+        # The automation itself addresses containers by numeric name. Reject
+        # headers/diagnostic lines accidentally parsed as containers.
+        if not name or not name.isdigit() or name in seen:
+            continue
+        seen.add(name)
+        try: num = int(item.get('num', name))
+        except Exception: num = int(name)
+        out.append({
+            'name': name,
+            'num': num,
+            'uuid': str(item.get('uuid', '') or ''),
+            'active': bool(item.get('active', False)),
+        })
+    out.sort(key=lambda x: (x['num'], x['name']))
+    return out
+
+def _roster_signature(containers):
+    payload = json.dumps(containers, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+def _invalidate_container_data(platform, phone, name):
+    """Drop stats/history for a container whose UUID generation changed."""
+    store = _fb if platform == 'fb' else _ig
+    current = store.get(phone) or {}
+    accounts = dict(current.get('accounts') or {})
+    accounts.pop(str(name), None)
+    current['accounts'] = accounts
+    store[phone] = current
+    _rset(f'{platform}:status:{phone}', current)
+
+    hist = _rget(f'{platform}:fh:{phone}') or {}
+    hist.pop(str(name), None)
+    _rset(f'{platform}:fh:{phone}', hist)
+
+    created = _rget(f'{platform}:created:{phone}') or {}
+    created.pop(str(name), None)
+    _rset(f'{platform}:created:{phone}', created)
+    _rdel(f'{platform}:flw_daily:{phone}:{name}')
 
 def _load_all():
     if not UPSTASH_URL:
@@ -210,15 +258,21 @@ def _save(platform, phone, data):
         for acc_num, acc in incoming.items():
             key = str(acc_num)
             if key not in merged:
-                merged[key] = acc
-            else:
-                for field, val in acc.items():
-                    if field == 'followers':
-                        if val and str(val) not in ('?', '', '0'):
-                            merged[key]['followers'] = val
-                    else:
-                        if val is not None:
-                            merged[key][field] = val
+                merged[key] = dict(acc)
+                continue
+            for field, val in acc.items():
+                if val is None:
+                    continue
+                sval = str(val).strip().lower() if isinstance(val, str) else None
+                if field in ('followers', 'name') and sval in ('', '?', '—'):
+                    continue
+                if field == 'views':
+                    try:
+                        if int(val) <= 0 and int(merged[key].get('views', 0) or 0) > 0:
+                            continue
+                    except Exception:
+                        pass
+                merged[key][field] = val
         data['accounts'] = merged
     # If no existing accounts but new data has some, keep those
     elif not data.get('accounts') and existing.get('accounts'):
@@ -274,10 +328,40 @@ def _list_snapshots():
 def _save_crane_q():
     _rset('crane:queue', _crane_q)
 
-def _save_crane_ctrs(platform, phone, data):
+def _save_crane_ctrs(platform, phone, data, source='unknown'):
     store = _crane_ctrs_fb if platform == 'fb' else _crane_ctrs_ig
-    store[phone] = data
+    new_roster = _normalize_roster(data)
+    old_roster = _normalize_roster(store.get(phone, []))
+    if isinstance(data, list) and data and not new_roster and old_roster:
+        # A non-empty payload that parses to zero containers is almost certainly
+        # a transient/formatting error; keep the last valid roster.
+        new_roster = old_roster
+
+    old_by_name = {c['name']: c for c in old_roster}
+    new_by_name = {c['name']: c for c in new_roster}
+
+    # Same container number + different UUID means a delete/re-create.
+    # Never let the old account stats follow the new container generation.
+    for name, new_ctr in new_by_name.items():
+        old_ctr = old_by_name.get(name)
+        if old_ctr and old_ctr.get('uuid') and new_ctr.get('uuid') and old_ctr['uuid'].lower() != new_ctr['uuid'].lower():
+            _invalidate_container_data(platform, phone, name)
+
+    store[phone] = new_roster
+    signature = _roster_signature(new_roster)
+    meta_key = f'crane:meta:{platform}:{phone}'
+    old_meta = _rget(meta_key) or {}
+    now = time.time()
+    meta = {
+        'signature': signature,
+        'container_count': len(new_roster),
+        'last_seen': now,
+        'updated_at': now if old_meta.get('signature') != signature else old_meta.get('updated_at', now),
+        'source': source,
+    }
     _rset(f'crane:containers:{platform}', store)
+    _rset(meta_key, meta)
+    return new_roster, meta
 
 # ─── HTTP HANDLER ─────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
@@ -366,7 +450,8 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith(f'/crane/containers/{plat}/'):
                 phone = p.split('/')[-1]
                 store = _crane_ctrs_fb if plat == 'fb' else _crane_ctrs_ig
-                self.out({'phone': phone, 'containers': store.get(phone, [])}); return
+                meta = _rget(f'crane:meta:{plat}:{phone}') or {}
+                self.out({'phone': phone, 'containers': store.get(phone, []), 'meta': meta}); return
 
         # Legacy: /crane/containers/1 (default to fb)
         if p.startswith('/crane/containers/'):
@@ -464,14 +549,16 @@ class Handler(BaseHTTPRequestHandler):
         for plat in ('fb', 'ig'):
             if p.startswith(f'/crane/containers/{plat}/'):
                 phone = p.split('/')[-1]
-                with _lock: _save_crane_ctrs(plat, phone, data.get('containers',[]))
-                self.out({'ok': True}); return
+                with _lock:
+                    roster, meta = _save_crane_ctrs(plat, phone, data.get('containers',[]), data.get('source','unknown'))
+                self.out({'ok': True, 'containers': roster, 'meta': meta}); return
 
         # Legacy /crane/containers/1 → default fb
         if p.startswith('/crane/containers/'):
             phone = p.split('/')[-1]
-            with _lock: _save_crane_ctrs('fb', phone, data.get('containers',[]))
-            self.out({'ok': True}); return
+            with _lock:
+                roster, meta = _save_crane_ctrs('fb', phone, data.get('containers',[]), data.get('source','legacy'))
+            self.out({'ok': True, 'containers': roster, 'meta': meta}); return
 
         # Platform-aware state: /crane/state/fb/1 or /crane/state/ig/1
         for plat in ('fb', 'ig'):
