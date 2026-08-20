@@ -497,6 +497,32 @@ class Handler(BaseHTTPRequestHandler):
                     _save(platform, phone, data)
                 self.out({'ok': True}); return
 
+        # Account creator notification.  This is deliberately separate from a
+        # roster update: Crane is still the only authority for membership.
+        if p == '/account/created':
+            platform = data.get('platform', 'fb')
+            phone = str(data.get('phone', '')).strip()
+            container = str(data.get('container', '')).strip()
+            if platform not in ('fb', 'ig') or not phone.isdigit() or not container.isdigit():
+                self.out({'ok': False, 'error': 'platform, phone and numeric container are required'}, 400); return
+            with _lock:
+                existing = _get(platform, phone) or {}
+                accounts = dict(existing.get('accounts') or {})
+                account = dict(accounts.get(container) or {})
+                name = str(data.get('name', '')).strip()
+                if name and name not in ('?', '—'):
+                    account['name'] = name
+                account['container'] = int(container)
+                accounts[container] = account
+                existing['accounts'] = accounts
+                _save(platform, phone, existing)
+
+                created = _get_first_seen(platform, phone)
+                if container not in created:
+                    created[container] = time.time()
+                    _rset(f'{platform}:created:{phone}', created)
+            self.out({'ok': True}); return
+
         # Followers-only update from phone_reporter
         for platform in ('fb', 'ig'):
             if p.startswith(f'/update/followers/{platform}/'):
