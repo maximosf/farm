@@ -1,5 +1,5 @@
 """
-Farm Dashboard Server v2 — FB + IG platform separation
+Farm Dashboard Server v3 — permanent FB + IG roster separation
 Persistent via Upstash Redis. 24h follower delta. First-seen date tracking.
 
 Endpoints:
@@ -67,6 +67,26 @@ def _rdel(key):
 def _rkeys(pattern):
     raw = _redis('GET', f'/keys/{pattern}')
     return raw if isinstance(raw, list) else []
+
+# Roster data created by earlier server versions is deliberately retired.  The
+# v3 namespace is the only roster store this server will ever load or write.
+ROSTER_SCHEMA = 'v3'
+
+def _roster_key(platform):
+    return f'crane:{ROSTER_SCHEMA}:containers:{platform}'
+
+def _roster_meta_key(platform, phone):
+    return f'crane:{ROSTER_SCHEMA}:meta:{platform}:{phone}'
+
+def _purge_retired_roster_data():
+    """Delete every old roster namespace so it cannot come back after restart."""
+    for key in (
+        'crane:containers', 'crane:containers:fb', 'crane:containers:ig',
+        _roster_key('fb'), _roster_key('ig'),
+    ):
+        _rdel(key)
+    for key in _rkeys('crane:meta:*') + _rkeys(f'crane:{ROSTER_SCHEMA}:meta:*'):
+        _rdel(key)
 
 # ─── IN-MEMORY CACHE ─────────────────────────────────────────────────────────
 _fb   = {}   # phone -> status
@@ -141,18 +161,12 @@ def _load_all():
     # Crane queue
     q = _rget('crane:queue')
     if q: _crane_q.update(q)
-    # Container lists — load new platform-specific keys
-    cfb = _rget('crane:containers:fb')
+    # Load only the v3 platform-specific roster store.  Old shared/legacy
+    # stores are intentionally never migrated back into memory.
+    cfb = _rget(_roster_key('fb'))
     if cfb: _crane_ctrs_fb.update(cfb)
-    cig = _rget('crane:containers:ig')
+    cig = _rget(_roster_key('ig'))
     if cig: _crane_ctrs_ig.update(cig)
-    # MIGRATION: if old key exists and new fb key is empty, migrate
-    if not _crane_ctrs_fb:
-        old = _rget('crane:containers')
-        if old:
-            _crane_ctrs_fb.update(old)
-            _rset('crane:containers:fb', _crane_ctrs_fb)
-            print(f'[startup] Migrated old containers to fb key: {list(old.keys())}')
     print(f'[startup] FB phones: {list(_fb.keys())} | IG phones: {list(_ig.keys())} | FB ctrs: {list(_crane_ctrs_fb.keys())}')
 
 # ─── FOLLOWER HISTORY (24h delta) ────────────────────────────────────────────
@@ -349,7 +363,7 @@ def _save_crane_ctrs(platform, phone, data, source='unknown'):
 
     store[phone] = new_roster
     signature = _roster_signature(new_roster)
-    meta_key = f'crane:meta:{platform}:{phone}'
+    meta_key = _roster_meta_key(platform, phone)
     old_meta = _rget(meta_key) or {}
     now = time.time()
     meta = {
@@ -359,7 +373,7 @@ def _save_crane_ctrs(platform, phone, data, source='unknown'):
         'updated_at': now if old_meta.get('signature') != signature else old_meta.get('updated_at', now),
         'source': source,
     }
-    _rset(f'crane:containers:{platform}', store)
+    _rset(_roster_key(platform), store)
     _rset(meta_key, meta)
     return new_roster, meta
 
@@ -386,15 +400,14 @@ class Handler(BaseHTTPRequestHandler):
         _maybe_snapshot()
         p = urlparse(self.path).path
 
-        # Admin: clear stale container data so reporters can re-populate
+        # Permanently purge every old roster namespace.  Only v3 reporter
+        # updates may repopulate the new platform-specific store.
         if p == '/admin/reset-containers':
             with _lock:
                 _crane_ctrs_fb.clear()
                 _crane_ctrs_ig.clear()
-                _rset('crane:containers:fb', {})
-                _rset('crane:containers:ig', {})
-                _rdel('crane:containers')  # clear legacy key too
-            self.out({'ok': True, 'msg': 'Container data cleared. Reporters will re-populate within 60s.'})
+                _purge_retired_roster_data()
+            self.out({'ok': True, 'msg': 'All legacy rosters permanently purged. Waiting for v3 phone reporters.'})
             return
 
         # Status endpoints
@@ -450,7 +463,7 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith(f'/crane/containers/{plat}/'):
                 phone = p.split('/')[-1]
                 store = _crane_ctrs_fb if plat == 'fb' else _crane_ctrs_ig
-                meta = _rget(f'crane:meta:{plat}:{phone}') or {}
+                meta = _rget(_roster_meta_key(plat, phone)) or {}
                 self.out({'phone': phone, 'containers': store.get(phone, []), 'meta': meta}); return
 
         # Legacy: /crane/containers/1 (default to fb)
@@ -575,16 +588,17 @@ class Handler(BaseHTTPRequestHandler):
         for plat in ('fb', 'ig'):
             if p.startswith(f'/crane/containers/{plat}/'):
                 phone = p.split('/')[-1]
+                # Reject reporters from every older release.  This is what
+                # stops their shared/stale values from ever reappearing.
+                if data.get('source') != 'phone_reporter_v3':
+                    self.out({'ok': False, 'error': 'Reporter upgrade required'}, 409); return
                 with _lock:
-                    roster, meta = _save_crane_ctrs(plat, phone, data.get('containers',[]), data.get('source','unknown'))
+                    roster, meta = _save_crane_ctrs(plat, phone, data.get('containers',[]), 'phone_reporter_v3')
                 self.out({'ok': True, 'containers': roster, 'meta': meta}); return
 
-        # Legacy /crane/containers/1 → default fb
+        # Never accept the original shared-list endpoint again.
         if p.startswith('/crane/containers/'):
-            phone = p.split('/')[-1]
-            with _lock:
-                roster, meta = _save_crane_ctrs('fb', phone, data.get('containers',[]), data.get('source','legacy'))
-            self.out({'ok': True, 'containers': roster, 'meta': meta}); return
+            self.out({'ok': False, 'error': 'Legacy roster endpoint retired'}, 410); return
 
         # Platform-aware state: /crane/state/fb/1 or /crane/state/ig/1
         for plat in ('fb', 'ig'):
