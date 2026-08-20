@@ -72,6 +72,115 @@ def _storage_label():
         return f'Railway Volume ({_volume_path})'
     return 'MEMORY ONLY'
 
+# ─── OOPSIE BIO LINK ANALYTICS ───────────────────────────────────────────────
+# Every existing Oopsie handle ends in the matching Phone number.  The public
+# page URLs stay in one clear map so the dashboard can render the right link on
+# the right Phone card.  OOPSIE_PAGES_JSON may override this map later without
+# a code change, for example: {"1":"https://oopsie.bio/example1", ...}.
+_DEFAULT_OOPSIE_PAGES = {
+    '1': 'https://oopsie.bio/madgph1',
+    '2': 'https://oopsie.bio/maddy2',
+    '3': 'https://oopsie.bio/maddgirl3',
+    '4': 'https://oopsie.bio/maddbab4',
+    '5': 'https://oopsie.bio/maddiecutie5',
+    '6': 'https://oopsie.bio/madpookie6',
+    '7': 'https://oopsie.bio/maddmad7',
+    '8': 'https://oopsie.bio/madd8',
+    '9': 'https://oopsie.bio/ismaddie9',
+}
+
+def _json_env(name, fallback):
+    raw = os.environ.get(name, '').strip()
+    if not raw:
+        return dict(fallback)
+    try:
+        value = json.loads(raw)
+        if isinstance(value, dict):
+            return {str(key): str(item).strip() for key, item in value.items() if str(item).strip()}
+    except Exception:
+        print(f'[analytics] Ignoring invalid {name}')
+    return dict(fallback)
+
+OOPSIE_PAGES = _json_env('OOPSIE_PAGES_JSON', _DEFAULT_OOPSIE_PAGES)
+# Set this one Railway variable later to activate final-button click tracking.
+# The target URLs never appear in the dashboard response.
+OOPSIE_CLICK_TARGETS = _json_env('OOPSIE_CLICK_TARGETS_JSON', {})
+_OOPSIE_BUCKET_KEY = 'oopsie:v1:hourly'
+_OOPSIE_START_KEY = 'oopsie:v1:tracking_started_at'
+_OOPSIE_RETENTION_SECONDS = 31 * 24 * 3600
+
+def _valid_http_url(value):
+    try:
+        parsed = urlparse(str(value))
+        return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
+    except Exception:
+        return False
+
+def _oopsie_buckets():
+    data = _rget(_OOPSIE_BUCKET_KEY) or {}
+    return data if isinstance(data, dict) else {}
+
+def _record_oopsie_event(phone, event):
+    """Persist an hourly view/click bucket; old buckets expire after 31 days."""
+    phone = str(phone)
+    if phone not in OOPSIE_PAGES or event not in ('views', 'clicks'):
+        return False
+    now = time.time()
+    hour = str(int(now // 3600) * 3600)
+    with _local_lock:
+        buckets = _oopsie_buckets()
+        bucket = buckets.setdefault(hour, {})
+        phone_stats = bucket.setdefault(phone, {'views': 0, 'clicks': 0})
+        phone_stats[event] = int(phone_stats.get(event, 0) or 0) + 1
+        cutoff = now - _OOPSIE_RETENTION_SECONDS
+        for bucket_hour in list(buckets):
+            try:
+                expired = float(bucket_hour) < cutoff
+            except (TypeError, ValueError):
+                expired = True
+            if expired:
+                buckets.pop(bucket_hour, None)
+        _rset(_OOPSIE_BUCKET_KEY, buckets)
+        if not _rget(_OOPSIE_START_KEY):
+            _rset(_OOPSIE_START_KEY, now)
+    return True
+
+def _oopsie_analytics():
+    """Return hour-resolution rolling totals for the last 24h, 7d and 30d."""
+    now = time.time()
+    windows = {'24h': 24 * 3600, '7d': 7 * 24 * 3600, '30d': 30 * 24 * 3600}
+    phones = {
+        phone: {
+            'phone': int(phone),
+            'page_url': url,
+            'view_path': f'/t/oopsie/{phone}',
+            'click_path': f'/t/oopsie/{phone}/click',
+            'click_tracking_ready': _valid_http_url(OOPSIE_CLICK_TARGETS.get(phone, '')),
+            'periods': {name: {'views': 0, 'clicks': 0} for name in windows},
+        }
+        for phone, url in sorted(OOPSIE_PAGES.items(), key=lambda item: int(item[0]))
+    }
+    for bucket_hour, phone_stats in _oopsie_buckets().items():
+        try:
+            ts = float(bucket_hour)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(phone_stats, dict):
+            continue
+        for phone, stats in phone_stats.items():
+            if phone not in phones or not isinstance(stats, dict):
+                continue
+            for period, seconds in windows.items():
+                if now - ts < seconds:
+                    phones[phone]['periods'][period]['views'] += int(stats.get('views', 0) or 0)
+                    phones[phone]['periods'][period]['clicks'] += int(stats.get('clicks', 0) or 0)
+    return {
+        'ok': True,
+        'tracking_started_at': _rget(_OOPSIE_START_KEY),
+        'resolution': 'hourly',
+        'phones': phones,
+    }
+
 # ─── UPSTASH ─────────────────────────────────────────────────────────────────
 def _redis(method, path, body=None):
     if not UPSTASH_URL: return None
@@ -478,9 +587,41 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def redirect(self, location):
+        """Send visitors straight on while keeping analytics responses private."""
+        self.send_response(302)
+        self.send_header('Location', location)
+        self.send_header('Cache-Control', 'no-store, private')
+        self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
+        self.end_headers()
+
     def do_GET(self):
         _maybe_snapshot()
         p = urlparse(self.path).path
+
+        # Public numbered tracking links.  Put /t/oopsie/1 in Phone 1's
+        # Facebook bio (and so on); it records a page view, then immediately
+        # opens that phone's existing Oopsie page.  The Oopsie page itself is
+        # unchanged.
+        if p.startswith('/t/oopsie/'):
+            parts = p.split('/')
+            phone = parts[3] if len(parts) >= 4 else ''
+            if phone not in OOPSIE_PAGES:
+                self.out({'ok': False, 'error': 'Unknown Oopsie phone link'}, 404); return
+            if len(parts) == 4:
+                _record_oopsie_event(phone, 'views')
+                self.redirect(OOPSIE_PAGES[phone]); return
+            if len(parts) == 5 and parts[4] == 'click':
+                destination = OOPSIE_CLICK_TARGETS.get(phone, '')
+                if not _valid_http_url(destination):
+                    self.out({
+                        'ok': False,
+                        'error': 'Click tracking is not configured for this phone yet',
+                    }, 409)
+                    return
+                _record_oopsie_event(phone, 'clicks')
+                self.redirect(destination); return
+            self.out({'ok': False, 'error': 'Unknown tracking link'}, 404); return
 
         if p == '/health':
             self.out({
@@ -490,8 +631,12 @@ class Handler(BaseHTTPRequestHandler):
                 'roster_storage': 'one durable record per platform and phone',
                 'storage': _storage_label(),
                 'persistent': _using_persistent_store(),
+                'oopsie_tracking': True,
             })
             return
+
+        if p == '/analytics/oopsie':
+            self.out(_oopsie_analytics()); return
 
         # Permanently purge every old roster namespace.  The current v4 phone
         # reporter may repopulate the new v5 store.
