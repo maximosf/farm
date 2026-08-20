@@ -200,7 +200,7 @@ main{padding:16px 20px;max-width:1600px;margin:0 auto;position:relative;z-index:
 </div>
 <script>
 const API='https://farm-production-8282.up.railway.app';
-const PHONES={1:{ip:'192.168.1.9'},2:{ip:'192.168.1.12'},3:{ip:'192.168.1.14'},4:{ip:'192.168.1.10'},5:{ip:'192.168.1.11'},6:{ip:'192.168.1.15'},7:{ip:'192.168.1.13'},8:{ip:'192.168.1.5'}};
+const PHONES={1:{ip:'192.168.1.9'},2:{ip:'192.168.1.12'},3:{ip:'192.168.1.14'},4:{ip:'192.168.1.10'},5:{ip:'192.168.1.11'},6:{ip:'192.168.1.15'},7:{ip:'192.168.1.13'},8:{ip:'192.168.1.5'},9:{ip:'192.168.1.20'}};
 const BIO_LINKS={1:'oopsie.bio/madgph1',2:'oopsie.bio/maddy2',3:'oopsie.bio/maddgirl3',4:'oopsie.bio/maddbab4',5:'oopsie.bio/maddiecute5',6:'oopsie.bio/madpookie6',7:'oopsie.bio/maddmadd7',8:'oopsie.bio/madd8',9:'oopsie.bio/ismaddie9',10:'oopsie.bio/maddiegirll10'};
 let platform='fb';
 const expanded={},craneOpen={},craneCtrs={},craneLogs={},craneState={},craneSelected={};
@@ -250,6 +250,12 @@ function switchPlatform(p){
   document.getElementById('tab-ig').className='tab'+(p==='ig'?' active-ig':'');
   document.getElementById('refresh-btn').className='hbtn'+(p==='ig'?' ig-btn':'');
   document.getElementById('h-followers').style.color=p==='fb'?'var(--fb2)':'var(--ig2)';
+  // Reload crane cache for new platform
+  for(const num of Object.keys(PHONES)){
+    const n=parseInt(num);
+    try{const c=localStorage.getItem('craneCtrs_'+p+'_'+n);if(c)craneCtrs[n]=JSON.parse(c);else craneCtrs[n]=[];}catch(e){craneCtrs[n]=[];}
+    try{const s=localStorage.getItem('craneState_'+p+'_'+n);if(s)craneState[n]=JSON.parse(s);else craneState[n]={};}catch(e){craneState[n]={};}
+  }
   buildCards();load();
 }
 
@@ -367,7 +373,22 @@ async function load(){
   const results=await Promise.all(Object.keys(PHONES).map(async num=>{
     const n=parseInt(num);let s=null,ctrs=[];
     try{const r=await fetch(`${API}/status/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok)s=await r.json();}catch(e){}
-    try{const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});if(r.ok){const d=await r.json();ctrs=(d.containers||[]).sort((a,b)=>a.num-b.num);}}catch(e){}
+    // Use craneCtrs from localStorage as primary source (set when user does List)
+    // Only fetch from API if we have nothing cached
+    if(craneCtrs[n]&&craneCtrs[n].length){
+      ctrs=craneCtrs[n];
+    }else{
+      try{const r=await fetch(`${API}/crane/containers/${p}/${n}`,{signal:AbortSignal.timeout(5000)});
+        if(r.ok){const d=await r.json();ctrs=(d.containers||[]).sort((a,b)=>a.num-b.num);
+          if(ctrs.length){craneCtrs[n]=ctrs;try{localStorage.setItem('craneCtrs_'+p+'_'+n,JSON.stringify(ctrs));}catch(e){}}
+        }
+      }catch(e){}
+      // Last resort: build from status accounts
+      if(!ctrs.length&&s&&s.accounts){
+        ctrs=Object.keys(s.accounts).sort((a,b)=>parseInt(a)-parseInt(b))
+          .map(k=>({name:k,num:parseInt(k),active:false}));
+      }
+    }
     return{n,s,ctrs};
   }));
 
@@ -399,7 +420,9 @@ async function load(){
 
     let phoneFlw=0,phoneDelta=0,phoneDeltaCnt=0;
     for(const c of ctrs){
-      const a=c.name,acc=accs[a]||accs[parseInt(a)]||{};
+      const a=c.name;
+      // Try name as-is, as int, and as string number to match whatever key the script sent
+      const acc=accs[a]||accs[String(parseInt(a))]||accs[parseInt(a)]||{};
       const flwNum=parseFollowers(acc.followers);
       phoneFlw+=flwNum;totalFlw+=flwNum;
       const d=acc.delta_24h;
@@ -523,19 +546,32 @@ async function refreshContainers(phone){
     const d1=await r1.json(),d2=await r2.json();
     craneCtrs[phone]=d1.containers||[];craneState[phone]=d2.state||{};
     if(!craneSelected[phone])craneSelected[phone]=new Set();
-    // Persist to localStorage so containers survive page refresh
+    // Persist to localStorage — survives page refresh forever
     try{localStorage.setItem('craneCtrs_'+platform+'_'+phone,JSON.stringify(craneCtrs[phone]));}catch(e){}
     try{localStorage.setItem('craneState_'+platform+'_'+phone,JSON.stringify(craneState[phone]));}catch(e){}
-    renderCraneContainers(phone);updateCommand(phone);
+    renderCraneContainers(phone);
+    updateCommand(phone);
+    // ALSO update the main acc-list with the fresh container data
+    const p=platform;
+    const ac=p==='fb'?'c-fb':'c-ig',flwCls=p==='fb'?'acc-flw':'acc-flw ig',linkCls=p==='fb'?'detail-link':'detail-link ig';
+    const listEl=document.getElementById('acc-list-'+p+'-'+phone);
+    if(listEl&&craneCtrs[phone].length){
+      listEl.innerHTML=buildAccRows(p,phone,craneCtrs[phone],ac,linkCls,flwCls);
+      _ctrCache[p+'-'+phone]=craneCtrs[phone].map(c=>c.name).join(',');
+    }
+    if(document.getElementById('acc-count-'+p+'-'+phone))
+      document.getElementById('acc-count-'+p+'-'+phone).textContent=craneCtrs[phone].length+' total';
+    if(document.getElementById('ms-accs-'+p+'-'+phone))
+      document.getElementById('ms-accs-'+p+'-'+phone).textContent=craneCtrs[phone].length||'—';
   }catch(e){}
 }
 
 function loadCraneCache(){
-  // Load persisted crane containers on page load
+  // Load persisted crane containers on page load for current platform
   for(const num of Object.keys(PHONES)){
     const n=parseInt(num);
-    try{const c=localStorage.getItem('craneCtrs_'+platform+'_'+n);if(c)craneCtrs[n]=JSON.parse(c);}catch(e){}
-    try{const s=localStorage.getItem('craneState_'+platform+'_'+n);if(s)craneState[n]=JSON.parse(s);}catch(e){}
+    try{const c=localStorage.getItem('craneCtrs_'+platform+'_'+n);if(c){craneCtrs[n]=JSON.parse(c);}}catch(e){}
+    try{const s=localStorage.getItem('craneState_'+platform+'_'+n);if(s){craneState[n]=JSON.parse(s);}}catch(e){}
   }
 }
 
