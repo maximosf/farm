@@ -1,5 +1,5 @@
 """
-Farm Dashboard Server v3 — permanent FB + IG roster separation
+Farm Dashboard Server v4 — atomic FB + IG roster separation
 Persistent via Upstash Redis. 24h follower delta. First-seen date tracking.
 
 Endpoints:
@@ -68,24 +68,28 @@ def _rkeys(pattern):
     raw = _redis('GET', f'/keys/{pattern}')
     return raw if isinstance(raw, list) else []
 
-# Roster data created by earlier server versions is deliberately retired.  The
-# v3 namespace is the only roster store this server will ever load or write.
-ROSTER_SCHEMA = 'v3'
+# Each roster is persisted independently by platform *and phone*.  This makes
+# updates safe even if Railway serves requests from more than one process.
+ROSTER_SCHEMA = 'v4'
 
-def _roster_key(platform):
-    return f'crane:{ROSTER_SCHEMA}:containers:{platform}'
+def _roster_phone_key(platform, phone):
+    return f'crane:{ROSTER_SCHEMA}:containers:{platform}:{phone}'
 
 def _roster_meta_key(platform, phone):
     return f'crane:{ROSTER_SCHEMA}:meta:{platform}:{phone}'
 
 def _purge_retired_roster_data():
-    """Delete every old roster namespace so it cannot come back after restart."""
+    """Delete every retired roster namespace so it cannot come back."""
     for key in (
         'crane:containers', 'crane:containers:fb', 'crane:containers:ig',
-        _roster_key('fb'), _roster_key('ig'),
+        'crane:v3:containers:fb', 'crane:v3:containers:ig',
     ):
         _rdel(key)
-    for key in _rkeys('crane:meta:*') + _rkeys(f'crane:{ROSTER_SCHEMA}:meta:*'):
+    for key in (
+        _rkeys('crane:meta:*') + _rkeys('crane:v3:meta:*') +
+        _rkeys('crane:v3:containers:*') + _rkeys('crane:v4:meta:*') +
+        _rkeys('crane:v4:containers:*')
+    ):
         _rdel(key)
 
 # ─── IN-MEMORY CACHE ─────────────────────────────────────────────────────────
@@ -161,12 +165,14 @@ def _load_all():
     # Crane queue
     q = _rget('crane:queue')
     if q: _crane_q.update(q)
-    # Load only the v3 platform-specific roster store.  Old shared/legacy
-    # stores are intentionally never migrated back into memory.
-    cfb = _rget(_roster_key('fb'))
-    if cfb: _crane_ctrs_fb.update(cfb)
-    cig = _rget(_roster_key('ig'))
-    if cig: _crane_ctrs_ig.update(cig)
+    # Each v4 roster is an independent platform+phone record.  Never load a
+    # shared list from any earlier server version.
+    for platform, store in (('fb', _crane_ctrs_fb), ('ig', _crane_ctrs_ig)):
+        for key in _rkeys(f'crane:{ROSTER_SCHEMA}:containers:{platform}:*'):
+            phone = key.rsplit(':', 1)[-1]
+            roster = _rget(key)
+            if isinstance(roster, list):
+                store[phone] = _normalize_roster(roster)
     print(f'[startup] FB phones: {list(_fb.keys())} | IG phones: {list(_ig.keys())} | FB ctrs: {list(_crane_ctrs_fb.keys())}')
 
 # ─── FOLLOWER HISTORY (24h delta) ────────────────────────────────────────────
@@ -342,10 +348,23 @@ def _list_snapshots():
 def _save_crane_q():
     _rset('crane:queue', _crane_q)
 
+def _get_crane_ctrs(platform, phone):
+    """Read the current roster from its own durable key, never a shared map."""
+    store = _crane_ctrs_fb if platform == 'fb' else _crane_ctrs_ig
+    if UPSTASH_URL:
+        saved = _rget(_roster_phone_key(platform, phone))
+        if isinstance(saved, list):
+            roster = _normalize_roster(saved)
+            store[phone] = roster
+            return roster
+    return _normalize_roster(store.get(phone, []))
+
 def _save_crane_ctrs(platform, phone, data, source='unknown'):
     store = _crane_ctrs_fb if platform == 'fb' else _crane_ctrs_ig
     new_roster = _normalize_roster(data)
-    old_roster = _normalize_roster(store.get(phone, []))
+    # Fetch this exact key first so UUID invalidation remains correct across
+    # worker restarts or multiple Railway processes.
+    old_roster = _get_crane_ctrs(platform, phone)
     if isinstance(data, list) and data and not new_roster and old_roster:
         # A non-empty payload that parses to zero containers is almost certainly
         # a transient/formatting error; keep the last valid roster.
@@ -373,7 +392,7 @@ def _save_crane_ctrs(platform, phone, data, source='unknown'):
         'updated_at': now if old_meta.get('signature') != signature else old_meta.get('updated_at', now),
         'source': source,
     }
-    _rset(_roster_key(platform), store)
+    _rset(_roster_phone_key(platform, phone), new_roster)
     _rset(meta_key, meta)
     return new_roster, meta
 
@@ -400,14 +419,23 @@ class Handler(BaseHTTPRequestHandler):
         _maybe_snapshot()
         p = urlparse(self.path).path
 
-        # Permanently purge every old roster namespace.  Only v3 reporter
+        if p == '/health':
+            self.out({
+                'ok': True,
+                'version': 'v4',
+                'schema': 'phone-platform-v4',
+                'roster_storage': 'one durable record per platform and phone',
+            })
+            return
+
+        # Permanently purge every old roster namespace.  Only v4 reporter
         # updates may repopulate the new platform-specific store.
         if p == '/admin/reset-containers':
             with _lock:
                 _crane_ctrs_fb.clear()
                 _crane_ctrs_ig.clear()
                 _purge_retired_roster_data()
-            self.out({'ok': True, 'msg': 'All legacy rosters permanently purged. Waiting for v3 phone reporters.'})
+            self.out({'ok': True, 'msg': 'All legacy rosters permanently purged. Waiting for v4 phone reporters.'})
             return
 
         # Status endpoints
@@ -462,14 +490,12 @@ class Handler(BaseHTTPRequestHandler):
         for plat in ('fb', 'ig'):
             if p.startswith(f'/crane/containers/{plat}/'):
                 phone = p.split('/')[-1]
-                store = _crane_ctrs_fb if plat == 'fb' else _crane_ctrs_ig
                 meta = _rget(_roster_meta_key(plat, phone)) or {}
-                self.out({'phone': phone, 'containers': store.get(phone, []), 'meta': meta}); return
+                self.out({'phone': phone, 'containers': _get_crane_ctrs(plat, phone), 'meta': meta}); return
 
-        # Legacy: /crane/containers/1 (default to fb)
+        # The old shared endpoint is intentionally gone.
         if p.startswith('/crane/containers/'):
-            phone = p.split('/')[-1]
-            self.out({'phone': phone, 'containers': _crane_ctrs_fb.get(phone, [])}); return
+            self.out({'ok': False, 'error': 'Legacy roster endpoint retired'}, 410); return
 
         # Platform-aware state: /crane/state/fb/1 or /crane/state/ig/1
         for plat in ('fb', 'ig'):
@@ -590,10 +616,10 @@ class Handler(BaseHTTPRequestHandler):
                 phone = p.split('/')[-1]
                 # Reject reporters from every older release.  This is what
                 # stops their shared/stale values from ever reappearing.
-                if data.get('source') != 'phone_reporter_v3':
+                if data.get('source') != 'phone_reporter_v4':
                     self.out({'ok': False, 'error': 'Reporter upgrade required'}, 409); return
                 with _lock:
-                    roster, meta = _save_crane_ctrs(plat, phone, data.get('containers',[]), 'phone_reporter_v3')
+                    roster, meta = _save_crane_ctrs(plat, phone, data.get('containers',[]), 'phone_reporter_v4')
                 self.out({'ok': True, 'containers': roster, 'meta': meta}); return
 
         # Never accept the original shared-list endpoint again.
@@ -617,5 +643,5 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     _load_all()
     port = int(os.environ.get('PORT', 5050))
-    print(f'Farm Dashboard v3 | Port {port} | Upstash: {"OK" if UPSTASH_URL else "NOT SET"}')
+    print(f'Farm Dashboard v4 | Port {port} | Upstash: {"OK" if UPSTASH_URL else "NOT SET"}')
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
