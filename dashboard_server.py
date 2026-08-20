@@ -617,5 +617,5 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     _load_all()
     port = int(os.environ.get('PORT', 5050))
-    print(f'Farm Dashboard v2 | Port {port} | Upstash: {"OK" if UPSTASH_URL else "NOT SET"}')
+    print(f'Farm Dashboard v3 | Port {port} | Upstash: {"OK" if UPSTASH_URL else "NOT SET"}')
     HTTPServer(('0.0.0.0', port), Handler).serve_forever()
