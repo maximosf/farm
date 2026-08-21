@@ -188,8 +188,10 @@ def _direct_oopsie_periods(phone):
         return {}
     if time.time() - float(entry.get('at', 0) or 0) > _OOPSIE_DIRECT_PERIODS_MAX_AGE:
         return {}
-    periods = _valid_oopsie_periods(entry.get('periods'))
-    return periods if len(periods) == 3 else {}
+    # Keep every verified range independently.  Oopsie can occasionally be
+    # slow to render a single range; a successful 24-hour read must not be
+    # discarded just because the 30-day tab was momentarily unavailable.
+    return _valid_oopsie_periods(entry.get('periods'))
 
 def _request_oopsie_sync():
     """Queue a harmless browser-sync request, rate-limited for a public dashboard."""
@@ -260,9 +262,9 @@ def _save_native_oopsie_totals(totals, direct_periods=None):
             accepted += 1
         if accepted:
             _rset(_OOPSIE_NATIVE_KEY, store)
-        # Direct-period stats are written only when all three valid Oopsie UI
-        # ranges were found for a phone.  They take precedence over calculated
-        # deltas because they are Oopsie's own period figures.
+        # Direct-period stats are written only when they pass the same numeric
+        # validation as the all-time totals.  Keep verified ranges separately:
+        # one delayed Oopsie tab must never erase a good read from another tab.
         direct_store = _rget(_OOPSIE_DIRECT_PERIODS_KEY) or {}
         if not isinstance(direct_store, dict):
             direct_store = {}
@@ -270,8 +272,11 @@ def _save_native_oopsie_totals(totals, direct_periods=None):
         for phone, periods in (direct_periods or {}).items():
             phone = str(phone)
             clean = _valid_oopsie_periods(periods)
-            if phone in OOPSIE_PAGES and len(clean) == 3:
-                direct_store[phone] = {'at': now, 'periods': clean}
+            if phone in OOPSIE_PAGES and clean:
+                old = direct_store.get(phone, {})
+                previous = _valid_oopsie_periods(old.get('periods')) if isinstance(old, dict) else {}
+                previous.update(clean)
+                direct_store[phone] = {'at': now, 'periods': previous}
                 direct_accepted += 1
         if direct_accepted:
             _rset(_OOPSIE_DIRECT_PERIODS_KEY, direct_store)
@@ -298,11 +303,12 @@ def _native_periods(phone, now):
         }
         ready[name] = bool(before)
     direct_periods = _direct_oopsie_periods(phone)
-    period_source = 'calculated'
+    period_source = {name: 'calculated' for name in windows}
     if direct_periods:
-        periods = direct_periods
-        ready = {name: True for name in windows}
-        period_source = 'oopsie'
+        for name, metrics in direct_periods.items():
+            periods[name] = metrics
+            ready[name] = True
+            period_source[name] = 'oopsie'
     return {
         'periods': periods,
         'period_ready': ready,
