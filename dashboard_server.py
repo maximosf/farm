@@ -114,6 +114,7 @@ _OOPSIE_START_KEY = 'oopsie:v1:tracking_started_at'
 _OOPSIE_RETENTION_SECONDS = 31 * 24 * 3600
 _OOPSIE_NATIVE_KEY = 'oopsie:v2:native-total-snapshots'
 _OOPSIE_NATIVE_RETENTION_SECONDS = 32 * 24 * 3600
+_OOPSIE_SYNC_REQUEST_KEY = 'oopsie:v1:sync-request'
 
 def _valid_http_url(value):
     try:
@@ -162,6 +163,41 @@ def _non_negative_int(value):
 def _native_oopsie_samples():
     data = _rget(_OOPSIE_NATIVE_KEY) or {}
     return data if isinstance(data, dict) else {}
+
+def _request_oopsie_sync():
+    """Queue a harmless browser-sync request, rate-limited for a public dashboard."""
+    now = time.time()
+    with _local_lock:
+        current = _rget(_OOPSIE_SYNC_REQUEST_KEY) or {}
+        requested_at = float(current.get('requested_at', 0) or 0) if isinstance(current, dict) else 0
+        # One pending request is enough; repeated public clicks cannot make the
+        # authenticated browser keep opening Oopsie tabs.
+        if requested_at and now - requested_at < 3 * 60:
+            return current, False
+        request = {'id': str(uuid.uuid4())[:8], 'requested_at': now, 'pending': True}
+        _rset(_OOPSIE_SYNC_REQUEST_KEY, request)
+        return request, True
+
+def _pending_oopsie_sync():
+    request = _rget(_OOPSIE_SYNC_REQUEST_KEY) or {}
+    if not isinstance(request, dict) or not request.get('pending'):
+        return {}
+    # A request naturally expires after 15 minutes instead of waking a Bridge
+    # much later when nobody expects a new Oopsie read.
+    if time.time() - float(request.get('requested_at', 0) or 0) > 15 * 60:
+        _rset(_OOPSIE_SYNC_REQUEST_KEY, {})
+        return {}
+    return request
+
+def _acknowledge_oopsie_sync():
+    with _local_lock:
+        request = _pending_oopsie_sync()
+        if not request:
+            return False
+        request['pending'] = False
+        request['completed_at'] = time.time()
+        _rset(_OOPSIE_SYNC_REQUEST_KEY, request)
+        return True
 
 def _save_native_oopsie_totals(totals):
     """Persist genuine Oopsie all-time totals, sampled by the Browser Bridge.
@@ -668,7 +704,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Oopsie-Bridge-Key')
         self.end_headers()
 
     def out(self, data, status=200):
@@ -729,6 +765,16 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == '/analytics/oopsie':
             self.out(_oopsie_analytics()); return
+
+        # Private Browser Bridge polling endpoint.  The public dashboard may
+        # request a sync, but only a Bridge holding the Railway key can see
+        # and complete that request.
+        if p == '/oopsie/bridge/request':
+            supplied = str(self.headers.get('X-Oopsie-Bridge-Key', ''))
+            if not OOPSIE_BRIDGE_TOKEN or not secrets.compare_digest(supplied, OOPSIE_BRIDGE_TOKEN):
+                self.out({'ok': False, 'error': 'Invalid Oopsie Browser Bridge key'}, 401); return
+            request = _pending_oopsie_sync()
+            self.out({'ok': True, 'pending': bool(request), 'request': request}); return
 
         # Permanently purge every old roster namespace.  The current v4 phone
         # reporter may repopulate the new v5 store.
@@ -819,6 +865,24 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length)
         try: data = json.loads(body) if body else {}
         except: data = {}
+
+        # Any Dashboard viewer may request one refresh.  The request contains
+        # no Oopsie credential and is rate-limited; an already connected local
+        # Browser Bridge completes it when Chrome is available.
+        if p == '/oopsie/bridge/request':
+            request, new_request = _request_oopsie_sync()
+            self.out({
+                'ok': True,
+                'queued': bool(request.get('pending')),
+                'new_request': new_request,
+                'message': 'Sync requested. Waiting for a connected Oopsie Bridge.',
+            }); return
+
+        if p == '/oopsie/bridge/ack':
+            supplied = str(self.headers.get('X-Oopsie-Bridge-Key', '') or data.get('key', ''))
+            if not OOPSIE_BRIDGE_TOKEN or not secrets.compare_digest(supplied, OOPSIE_BRIDGE_TOKEN):
+                self.out({'ok': False, 'error': 'Invalid Oopsie Browser Bridge key'}, 401); return
+            self.out({'ok': True, 'acknowledged': _acknowledge_oopsie_sync()}); return
 
         # The optional Oopsie Browser Bridge posts only the totals visible in
         # the account owner's logged-in Oopsie dashboard.  It is deliberately
