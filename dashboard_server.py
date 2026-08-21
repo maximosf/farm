@@ -82,9 +82,9 @@ _DEFAULT_OOPSIE_PAGES = {
     '2': 'https://oopsie.bio/maddy2',
     '3': 'https://oopsie.bio/maddgirl3',
     '4': 'https://oopsie.bio/maddbab4',
-    '5': 'https://oopsie.bio/maddiecutie5',
+    '5': 'https://oopsie.bio/maddiecute5',
     '6': 'https://oopsie.bio/madpookie6',
-    '7': 'https://oopsie.bio/maddmad7',
+    '7': 'https://oopsie.bio/maddmadd7',
     '8': 'https://oopsie.bio/madd8',
     '9': 'https://oopsie.bio/ismaddie9',
 }
