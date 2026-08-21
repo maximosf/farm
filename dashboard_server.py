@@ -21,7 +21,7 @@ Endpoints:
   POST /crane/state/{p}      update state
 """
 
-import json, os, uuid, time, datetime, threading, hashlib, fnmatch
+import json, os, uuid, time, datetime, threading, hashlib, fnmatch, secrets
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 try:
@@ -105,9 +105,15 @@ OOPSIE_PAGES = _json_env('OOPSIE_PAGES_JSON', _DEFAULT_OOPSIE_PAGES)
 # Set this one Railway variable later to activate final-button click tracking.
 # The target URLs never appear in the dashboard response.
 OOPSIE_CLICK_TARGETS = _json_env('OOPSIE_CLICK_TARGETS_JSON', {})
+# A private key used only by the optional Chrome-based Oopsie Browser Bridge.
+# The bridge reads the totals rendered in the owner's already signed-in Oopsie
+# dashboard; it never receives the Oopsie password or session cookie.
+OOPSIE_BRIDGE_TOKEN = os.environ.get('OOPSIE_BRIDGE_TOKEN', '').strip()
 _OOPSIE_BUCKET_KEY = 'oopsie:v1:hourly'
 _OOPSIE_START_KEY = 'oopsie:v1:tracking_started_at'
 _OOPSIE_RETENTION_SECONDS = 31 * 24 * 3600
+_OOPSIE_NATIVE_KEY = 'oopsie:v2:native-total-snapshots'
+_OOPSIE_NATIVE_RETENTION_SECONDS = 32 * 24 * 3600
 
 def _valid_http_url(value):
     try:
@@ -145,6 +151,81 @@ def _record_oopsie_event(phone, event):
             _rset(_OOPSIE_START_KEY, now)
     return True
 
+def _non_negative_int(value):
+    """Accept only whole, non-negative analytics totals from the local bridge."""
+    try:
+        number = int(value)
+        return number if number >= 0 else None
+    except (TypeError, ValueError):
+        return None
+
+def _native_oopsie_samples():
+    data = _rget(_OOPSIE_NATIVE_KEY) or {}
+    return data if isinstance(data, dict) else {}
+
+def _save_native_oopsie_totals(totals):
+    """Persist genuine Oopsie all-time totals, sampled by the Browser Bridge.
+
+    Oopsie owns the totals.  We retain samples solely to calculate the rolling
+    24-hour, 7-day and 30-day *changes* without copying browser credentials.
+    """
+    if not isinstance(totals, dict):
+        return 0
+    now = time.time()
+    accepted = 0
+    with _local_lock:
+        store = _native_oopsie_samples()
+        for phone, metrics in totals.items():
+            phone = str(phone)
+            if phone not in OOPSIE_PAGES or not isinstance(metrics, dict):
+                continue
+            views = _non_negative_int(metrics.get('views'))
+            clicks = _non_negative_int(metrics.get('clicks'))
+            if views is None or clicks is None:
+                continue
+            samples = store.get(phone)
+            if not isinstance(samples, list):
+                samples = []
+            # A connector can report often.  One sample per 20 minutes is more
+            # than enough for rolling-period calculations and keeps storage tidy.
+            if samples and now - float(samples[-1].get('at', 0) or 0) < 20 * 60:
+                samples[-1] = {'at': now, 'views': views, 'clicks': clicks}
+            else:
+                samples.append({'at': now, 'views': views, 'clicks': clicks})
+            cutoff = now - _OOPSIE_NATIVE_RETENTION_SECONDS
+            store[phone] = [item for item in samples if float(item.get('at', 0) or 0) >= cutoff]
+            accepted += 1
+        if accepted:
+            _rset(_OOPSIE_NATIVE_KEY, store)
+    return accepted
+
+def _native_periods(phone, now):
+    """Return deltas from Oopsie's saved all-time totals for each rolling window."""
+    samples = _native_oopsie_samples().get(str(phone), [])
+    samples = [s for s in samples if isinstance(s, dict) and _non_negative_int(s.get('views')) is not None and _non_negative_int(s.get('clicks')) is not None]
+    if not samples:
+        return None
+    samples.sort(key=lambda item: float(item.get('at', 0) or 0))
+    latest = samples[-1]
+    latest_views, latest_clicks = int(latest['views']), int(latest['clicks'])
+    windows = {'24h': 24 * 3600, '7d': 7 * 24 * 3600, '30d': 30 * 24 * 3600}
+    periods, ready = {}, {}
+    for name, seconds in windows.items():
+        cutoff = now - seconds
+        before = [s for s in samples if float(s.get('at', 0) or 0) <= cutoff]
+        baseline = before[-1] if before else samples[0]
+        periods[name] = {
+            'views': max(0, latest_views - int(baseline['views'])),
+            'clicks': max(0, latest_clicks - int(baseline['clicks'])),
+        }
+        ready[name] = bool(before)
+    return {
+        'periods': periods,
+        'period_ready': ready,
+        'all_time': {'views': latest_views, 'clicks': latest_clicks},
+        'last_synced_at': latest.get('at'),
+    }
+
 def _oopsie_analytics():
     """Return hour-resolution rolling totals for the last 24h, 7d and 30d."""
     now = time.time()
@@ -174,10 +255,21 @@ def _oopsie_analytics():
                 if now - ts < seconds:
                     phones[phone]['periods'][period]['views'] += int(stats.get('views', 0) or 0)
                     phones[phone]['periods'][period]['clicks'] += int(stats.get('clicks', 0) or 0)
+    # Prefer totals supplied by the owner's signed-in Oopsie dashboard when
+    # the optional Browser Bridge is connected.  This is the authoritative
+    # Oopsie source; tracker values remain only as a fallback while it is not.
+    for phone, info in phones.items():
+        native = _native_periods(phone, now)
+        if native:
+            info.update(native)
+            info['source'] = 'oopsie_browser_bridge'
+        else:
+            info['source'] = 'farm_tracker'
     return {
         'ok': True,
         'tracking_started_at': _rget(_OOPSIE_START_KEY),
         'resolution': 'hourly',
+        'bridge_configured': bool(OOPSIE_BRIDGE_TOKEN),
         'phones': phones,
     }
 
@@ -727,6 +819,20 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length)
         try: data = json.loads(body) if body else {}
         except: data = {}
+
+        # The optional Oopsie Browser Bridge posts only the totals visible in
+        # the account owner's logged-in Oopsie dashboard.  It is deliberately
+        # separate from phone reporters and protected by its own Railway key.
+        if p == '/ingest/oopsie/totals':
+            supplied = str(self.headers.get('X-Oopsie-Bridge-Key', '') or data.get('key', ''))
+            if not OOPSIE_BRIDGE_TOKEN:
+                self.out({'ok': False, 'error': 'Oopsie Browser Bridge is not configured'}, 503); return
+            if not secrets.compare_digest(supplied, OOPSIE_BRIDGE_TOKEN):
+                self.out({'ok': False, 'error': 'Invalid Oopsie Browser Bridge key'}, 401); return
+            accepted = _save_native_oopsie_totals(data.get('totals'))
+            if not accepted:
+                self.out({'ok': False, 'error': 'No valid Oopsie totals were supplied'}, 400); return
+            self.out({'ok': True, 'accepted': accepted, 'at': time.time()}); return
 
         # Platform status updates
         for platform in ('fb', 'ig'):
