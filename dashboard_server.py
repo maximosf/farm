@@ -193,6 +193,15 @@ def _direct_oopsie_periods(phone):
     # discarded just because the 30-day tab was momentarily unavailable.
     return _valid_oopsie_periods(entry.get('periods'))
 
+def _direct_oopsie_sync_at(phone):
+    """Return the freshness timestamp for a direct Oopsie period read."""
+    data = _rget(_OOPSIE_DIRECT_PERIODS_KEY) or {}
+    entry = data.get(str(phone), {}) if isinstance(data, dict) else {}
+    if not isinstance(entry, dict):
+        return None
+    at = float(entry.get('at', 0) or 0)
+    return at if at and time.time() - at <= _OOPSIE_DIRECT_PERIODS_MAX_AGE else None
+
 def _request_oopsie_sync():
     """Queue a harmless browser-sync request, rate-limited for a public dashboard."""
     now = time.time()
@@ -237,7 +246,7 @@ def _save_native_oopsie_totals(totals, direct_periods=None):
     if not isinstance(totals, dict):
         return 0
     now = time.time()
-    accepted = 0
+    accepted_phones = set()
     with _local_lock:
         store = _native_oopsie_samples()
         for phone, metrics in totals.items():
@@ -259,8 +268,8 @@ def _save_native_oopsie_totals(totals, direct_periods=None):
                 samples.append({'at': now, 'views': views, 'clicks': clicks})
             cutoff = now - _OOPSIE_NATIVE_RETENTION_SECONDS
             store[phone] = [item for item in samples if float(item.get('at', 0) or 0) >= cutoff]
-            accepted += 1
-        if accepted:
+            accepted_phones.add(phone)
+        if accepted_phones:
             _rset(_OOPSIE_NATIVE_KEY, store)
         # Direct-period stats are written only when they pass the same numeric
         # validation as the all-time totals.  Keep verified ranges separately:
@@ -278,32 +287,39 @@ def _save_native_oopsie_totals(totals, direct_periods=None):
                 previous.update(clean)
                 direct_store[phone] = {'at': now, 'periods': previous}
                 direct_accepted += 1
+                accepted_phones.add(phone)
         if direct_accepted:
             _rset(_OOPSIE_DIRECT_PERIODS_KEY, direct_store)
-    return accepted
+    return len(accepted_phones)
 
 def _native_periods(phone, now):
     """Return deltas from Oopsie's saved all-time totals for each rolling window."""
     samples = _native_oopsie_samples().get(str(phone), [])
     samples = [s for s in samples if isinstance(s, dict) and _non_negative_int(s.get('views')) is not None and _non_negative_int(s.get('clicks')) is not None]
-    if not samples:
-        return None
-    samples.sort(key=lambda item: float(item.get('at', 0) or 0))
-    latest = samples[-1]
-    latest_views, latest_clicks = int(latest['views']), int(latest['clicks'])
-    windows = {'24h': 24 * 3600, '7d': 7 * 24 * 3600, '30d': 30 * 24 * 3600}
-    periods, ready = {}, {}
-    for name, seconds in windows.items():
-        cutoff = now - seconds
-        before = [s for s in samples if float(s.get('at', 0) or 0) <= cutoff]
-        baseline = before[-1] if before else samples[0]
-        periods[name] = {
-            'views': max(0, latest_views - int(baseline['views'])),
-            'clicks': max(0, latest_clicks - int(baseline['clicks'])),
-        }
-        ready[name] = bool(before)
     direct_periods = _direct_oopsie_periods(phone)
+    direct_at = _direct_oopsie_sync_at(phone)
+    if not samples and not direct_periods:
+        return None
+    windows = {'24h': 24 * 3600, '7d': 7 * 24 * 3600, '30d': 30 * 24 * 3600}
+    periods = {name: {'views': 0, 'clicks': 0} for name in windows}
+    ready = {name: False for name in windows}
     period_source = {name: 'calculated' for name in windows}
+    latest_views = latest_clicks = None
+    latest_at = None
+    if samples:
+        samples.sort(key=lambda item: float(item.get('at', 0) or 0))
+        latest = samples[-1]
+        latest_views, latest_clicks = int(latest['views']), int(latest['clicks'])
+        latest_at = latest.get('at')
+        for name, seconds in windows.items():
+            cutoff = now - seconds
+            before = [s for s in samples if float(s.get('at', 0) or 0) <= cutoff]
+            baseline = before[-1] if before else samples[0]
+            periods[name] = {
+                'views': max(0, latest_views - int(baseline['views'])),
+                'clicks': max(0, latest_clicks - int(baseline['clicks'])),
+            }
+            ready[name] = bool(before)
     if direct_periods:
         for name, metrics in direct_periods.items():
             periods[name] = metrics
@@ -313,8 +329,8 @@ def _native_periods(phone, now):
         'periods': periods,
         'period_ready': ready,
         'period_source': period_source,
-        'all_time': {'views': latest_views, 'clicks': latest_clicks},
-        'last_synced_at': latest.get('at'),
+        'all_time': {'views': latest_views, 'clicks': latest_clicks} if latest_views is not None else None,
+        'last_synced_at': direct_at or latest_at,
     }
 
 def _oopsie_analytics():
