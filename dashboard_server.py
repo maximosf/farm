@@ -115,6 +115,8 @@ _OOPSIE_RETENTION_SECONDS = 31 * 24 * 3600
 _OOPSIE_NATIVE_KEY = 'oopsie:v2:native-total-snapshots'
 _OOPSIE_NATIVE_RETENTION_SECONDS = 32 * 24 * 3600
 _OOPSIE_SYNC_REQUEST_KEY = 'oopsie:v1:sync-request'
+_OOPSIE_DIRECT_PERIODS_KEY = 'oopsie:v3:direct-periods'
+_OOPSIE_DIRECT_PERIODS_MAX_AGE = 3 * 60 * 60
 
 def _valid_http_url(value):
     try:
@@ -164,6 +166,31 @@ def _native_oopsie_samples():
     data = _rget(_OOPSIE_NATIVE_KEY) or {}
     return data if isinstance(data, dict) else {}
 
+def _valid_oopsie_periods(value):
+    """Validate the exact 24h/7d/30d figures read from Oopsie's UI."""
+    if not isinstance(value, dict):
+        return {}
+    clean = {}
+    for period in ('24h', '7d', '30d'):
+        metrics = value.get(period)
+        if not isinstance(metrics, dict):
+            continue
+        views, clicks = _non_negative_int(metrics.get('views')), _non_negative_int(metrics.get('clicks'))
+        if views is None or clicks is None or clicks > views:
+            continue
+        clean[period] = {'views': views, 'clicks': clicks}
+    return clean
+
+def _direct_oopsie_periods(phone):
+    data = _rget(_OOPSIE_DIRECT_PERIODS_KEY) or {}
+    entry = data.get(str(phone), {}) if isinstance(data, dict) else {}
+    if not isinstance(entry, dict):
+        return {}
+    if time.time() - float(entry.get('at', 0) or 0) > _OOPSIE_DIRECT_PERIODS_MAX_AGE:
+        return {}
+    periods = _valid_oopsie_periods(entry.get('periods'))
+    return periods if len(periods) == 3 else {}
+
 def _request_oopsie_sync():
     """Queue a harmless browser-sync request, rate-limited for a public dashboard."""
     now = time.time()
@@ -199,7 +226,7 @@ def _acknowledge_oopsie_sync():
         _rset(_OOPSIE_SYNC_REQUEST_KEY, request)
         return True
 
-def _save_native_oopsie_totals(totals):
+def _save_native_oopsie_totals(totals, direct_periods=None):
     """Persist genuine Oopsie all-time totals, sampled by the Browser Bridge.
 
     Oopsie owns the totals.  We retain samples solely to calculate the rolling
@@ -233,6 +260,21 @@ def _save_native_oopsie_totals(totals):
             accepted += 1
         if accepted:
             _rset(_OOPSIE_NATIVE_KEY, store)
+        # Direct-period stats are written only when all three valid Oopsie UI
+        # ranges were found for a phone.  They take precedence over calculated
+        # deltas because they are Oopsie's own period figures.
+        direct_store = _rget(_OOPSIE_DIRECT_PERIODS_KEY) or {}
+        if not isinstance(direct_store, dict):
+            direct_store = {}
+        direct_accepted = 0
+        for phone, periods in (direct_periods or {}).items():
+            phone = str(phone)
+            clean = _valid_oopsie_periods(periods)
+            if phone in OOPSIE_PAGES and len(clean) == 3:
+                direct_store[phone] = {'at': now, 'periods': clean}
+                direct_accepted += 1
+        if direct_accepted:
+            _rset(_OOPSIE_DIRECT_PERIODS_KEY, direct_store)
     return accepted
 
 def _native_periods(phone, now):
@@ -255,9 +297,16 @@ def _native_periods(phone, now):
             'clicks': max(0, latest_clicks - int(baseline['clicks'])),
         }
         ready[name] = bool(before)
+    direct_periods = _direct_oopsie_periods(phone)
+    period_source = 'calculated'
+    if direct_periods:
+        periods = direct_periods
+        ready = {name: True for name in windows}
+        period_source = 'oopsie'
     return {
         'periods': periods,
         'period_ready': ready,
+        'period_source': period_source,
         'all_time': {'views': latest_views, 'clicks': latest_clicks},
         'last_synced_at': latest.get('at'),
     }
@@ -893,7 +942,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.out({'ok': False, 'error': 'Oopsie Browser Bridge is not configured'}, 503); return
             if not secrets.compare_digest(supplied, OOPSIE_BRIDGE_TOKEN):
                 self.out({'ok': False, 'error': 'Invalid Oopsie Browser Bridge key'}, 401); return
-            accepted = _save_native_oopsie_totals(data.get('totals'))
+            accepted = _save_native_oopsie_totals(data.get('totals'), data.get('periods'))
             if not accepted:
                 self.out({'ok': False, 'error': 'No valid Oopsie totals were supplied'}, 400); return
             self.out({'ok': True, 'accepted': accepted, 'at': time.time()}); return
